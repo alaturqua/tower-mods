@@ -34,7 +34,7 @@ function stubHost(on: On, git: Git = { branch: 'main', dirty: true }) {
 }
 
 // No refresh timer: the tests drive every update.
-const quiet = { options: { pollSeconds: 0 } }
+const quiet = { options: { pollSeconds: 0, inboxSeconds: 0 } }
 const start = ($: Engine) => $.session.start({ source: 'startup', cwd: 'D:/Projects/tower-mods' } as never)
 
 test('the line shows folder, branch, model, effort, context and cost', quiet, async ($, on) => {

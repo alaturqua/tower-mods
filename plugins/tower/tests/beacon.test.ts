@@ -4,7 +4,11 @@ import type { On } from 'claude-code'
 // The test runtime has timers; the hooks module's typings leave them out.
 declare const setTimeout: (fn: () => void, ms: number) => unknown
 
-type Run ={ argv: readonly string[]; env: Record<string, string> }
+type Run = { argv: readonly string[]; env: Record<string, string> }
+
+// Paths from .claude/tower/ on: the same on every OS, whatever the engine puts before them
+// (on Linux the fixture's C:/Users/me is a relative path, so the working folder comes first).
+const tail = (path: string) => path.replace(/\\/g, '/').replace(/^.*?(\.claude\/tower\/)/, '$1')
 
 // The engine beneath the plugin: a Windows host in a repo called "dbt-platform".
 // `launched` makes the tower's marker file for this session exist.
@@ -15,7 +19,7 @@ function stubHost(on: On, os = 'Windows_NT', launched = false) {
   let ran: () => void = () => {}
   const firstRun = new Promise<void>(resolve => { ran = resolve })
 
-  on('fs.exists', (_$, e) => ({ value: (launched && /[\\/]tower[\\/]launched[\\/]sess-1\.json$/.test(e.path)) || e.path.replace(/\\/g, '/') in files }))
+  on('fs.exists', (_$, e) => ({ value: (launched && /[\\/]tower[\\/]launched[\\/]sess-1\.json$/.test(e.path)) || tail(e.path) in files }))
   on('prompt.submit', (_$, e) => { prompts.push(e.text); return { text: e.text } })
   const env: Record<string, string> = { OS: os, USERPROFILE: 'C:/Users/me' }
   on('env.get', (_$, e) => ({ value: env[e.name] }))
@@ -36,7 +40,7 @@ function stubHost(on: On, os = 'Windows_NT', launched = false) {
   on('clock.every', () => (ticks-- > 0 ? { value: undefined } : new Promise(() => {})) as never)
   const files: Record<string, string> = {}
   on('fs.read', (_$, e) => {
-    const text = files[e.path.replace(/\\/g, '/')]
+    const text = files[tail(e.path)]
     if (text === undefined) throw new Error('ENOENT')
     return { value: text } as never
   })
@@ -53,7 +57,7 @@ function stubHost(on: On, os = 'Windows_NT', launched = false) {
   return { runs, writes, prompts, firstRun, lastStatus, files, store, tick }
 }
 
-const INBOX = 'C:/Users/me/.claude/tower/inbox/sess-1.jsonl'
+const INBOX = '.claude/tower/inbox/sess-1.jsonl'
 
 test('a prompt the cockpit appends to the inbox is submitted once', async ($, on) => {
   const host = stubHost(on)

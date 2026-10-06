@@ -4,8 +4,9 @@ import type { On } from 'claude-code'
 
 type Run = { argv: readonly string[]; cwd?: string }
 
-// The engine hands paths over in the platform's spelling.
-const slash = (path: string) => path.replace(/\\/g, '/')
+// Paths from .claude/tower/ on: the same on every OS, whatever the engine puts before them
+// (on Linux the fixture's C:/Users/me is a relative path, so the working folder comes first).
+const slash = (path: string) => path.replace(/\\/g, '/').replace(/^.*?(\.claude\/tower\/)/, '$1')
 
 // Three sessions besides the tower: "web" busy without beacon, "dbt" waiting on a
 // permission with beacon, "api" idle in the background.
@@ -22,7 +23,7 @@ function stubHost(on: On) {
     { pid: 4, cwd: 'D:\\Projects\\tower-mods', kind: 'interactive', startedAt: 1, sessionId: 'me', name: 'tower', status: 'busy' },
   ]
   const files: Record<string, string> = {
-    'C:/Users/me/.claude/tower/sessions/dbt-id.json': JSON.stringify({
+    '.claude/tower/sessions/dbt-id.json': JSON.stringify({
       sessionId: 'dbt-id', label: 'dbt-platform', state: 'needs-input', updatedAt: new Date().toISOString(), remoteAnswers: true,
       pending: { id: 'p-1', kind: 'permission', title: 'Bash', detail: 'git push' },
       lastPrompt: 'migrate the models', lastAnswer: 'Ran the migration.\n\nAll 12 models migrated.',
@@ -56,7 +57,7 @@ function stubHost(on: On) {
 }
 
 // No refresh timer: each command polls for itself.
-const quiet = { options: { pollSeconds: 0 } }
+const quiet = { options: { pollSeconds: 0, inboxSeconds: 0 } }
 
 // The pane docked beside the transcript, this many columns wide.
 const paneProps = (bodyColumns: number) => ({
@@ -108,7 +109,7 @@ test('/tower launch marks the session as launched, then starts it in the backgro
   const id = run?.argv[run.argv.indexOf('--session-id') + 1] ?? ''
   expect(run?.argv[run.argv.indexOf('--name') + 1]).toBe(`api-${id.slice(0, 4)}`)
   expect(run?.argv[run.argv.length - 1]).toBe('fix the flaky test')
-  expect(host.order[0]).toBe(`write C:/Users/me/.claude/tower/launched/${id}.json`)
+  expect(host.order[0]).toBe(`write .claude/tower/launched/${id}.json`)
   expect(host.order[1]).toContain('--bg')
 })
 
