@@ -1,0 +1,47 @@
+# git-cliff: CHANGELOG.md and release notes from the commit history.
+#   npx git-cliff -o CHANGELOG.md          the whole changelog
+#   npx git-cliff --latest --strip header  notes for the newest tag (the release workflow)
+# Commits here read as sentences ("Add the cockpit…", "Fix the demo player…"); the first
+# word picks the section. Conventional commits (feat:, fix:) sort the same way.
+
+[changelog]
+header = """
+# Changelog
+
+Everything notable in Tower (the plugin and its site), newest first. Generated from the commit history by [git-cliff](https://git-cliff.org).
+
+"""
+body = """
+{% if version %}\
+## [{{ version | trim_start_matches(pat="v") }}](https://github.com/alaturqua/tower-mods/releases/tag/{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+## Unreleased
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim }}
+{% for commit in commits %}
+- {{ commit.message | split(pat="\n") | first | trim | trim_start_matches(pat="feat: ") | trim_start_matches(pat="fix: ") | upper_first }} \
+([{{ commit.id | truncate(length=7, end="") }}](https://github.com/alaturqua/tower-mods/commit/{{ commit.id }}))\
+{% endfor %}
+{% endfor %}
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = false
+filter_unconventional = false
+split_commits = false
+protect_breaking_commits = false
+tag_pattern = "v[0-9]+\\.[0-9]+\\.[0-9]+"
+sort_commits = "oldest"
+filter_commits = false
+commit_parsers = [
+  { message = "^Release v", skip = true },
+  { message = "^Merge ", skip = true },
+  { message = "^(feat(\\(.*\\))?:|Add|Introduce|Create|Support)", group = "<!-- 0 -->Added" },
+  { message = "^(fix(\\(.*\\))?:|Fix|Repair|Correct)", group = "<!-- 2 -->Fixed" },
+  { message = "^(Remove|Drop|Delete)", group = "<!-- 3 -->Removed" },
+  { message = "^(docs(\\(.*\\))?:|Document)", group = "<!-- 4 -->Documentation" },
+  { message = ".*", group = "<!-- 1 -->Changed" },
+]
