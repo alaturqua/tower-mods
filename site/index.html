@@ -16,6 +16,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    // Before first paint: the saved choice, else the system's, so the page never flashes the wrong theme.
+    (function () {
+      var saved = null
+      try { saved = localStorage.getItem('tower-theme') } catch (e) {}
+      var system = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+      document.documentElement.dataset.theme = saved === 'light' || saved === 'dark' ? saved : system
+    })()
+  </script>
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
@@ -32,6 +41,10 @@
       <a href="#install">Install</a>
     </nav>
     <a class="rail-link" href="https://github.com/alaturqua/tower-mods">GitHub</a>
+    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch to light mode">
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+    </button>
   </header>
 
   <main id="main">
@@ -135,6 +148,32 @@ claude plugin install strip@tower</code></pre>
   </footer>
 
   <script>
+    (function () {
+      var root = document.documentElement
+      var toggle = document.getElementById('theme-toggle')
+      var meta = document.querySelector('meta[name="theme-color"]')
+      function show(theme) {
+        root.dataset.theme = theme
+        toggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode')
+        meta.setAttribute('content', theme === 'dark' ? '#0E1116' : '#F6F7F9')
+      }
+      function saved() {
+        try { return localStorage.getItem('tower-theme') } catch (e) { return null }
+      }
+      show(root.dataset.theme === 'light' ? 'light' : 'dark')
+      toggle.addEventListener('click', function () {
+        var next = root.dataset.theme === 'dark' ? 'light' : 'dark'
+        try { localStorage.setItem('tower-theme', next) } catch (e) {}
+        show(next)
+      })
+      // Until you pick one, the page follows the system as it changes.
+      if (window.matchMedia) {
+        matchMedia('(prefers-color-scheme: light)').addEventListener('change', function (e) {
+          if (!saved()) show(e.matches ? 'light' : 'dark')
+        })
+      }
+    })()
+
     document.querySelectorAll('button.copy').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var text = document.getElementById(btn.dataset.copy).innerText
