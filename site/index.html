@@ -157,11 +157,16 @@
       <p class="eyebrow">In design</p>
       <h2 id="cockpit-title">Next: the cockpit</h2>
       <p class="sub">A local web dashboard for when one pane is not enough: every repo and its workstreams on the left, the fleet in the middle, the selected agent's live activity on the right.</p>
-      <figure class="demo">
-        <img class="demo-dark" src="images/cockpit-demo-dark.gif" width="1200" height="491" loading="lazy" alt="The cockpit mockup in dark mode: approving a git push and answering a question from the Needs you cards, switching between Table, Cards and Timeline views, creating a workstream, and folding the repository rail and the agent panel.">
-        <img class="demo-light" src="images/cockpit-demo-light.gif" width="1200" height="491" loading="lazy" alt="The cockpit mockup in light mode: approving a git push and answering a question from the Needs you cards, switching between Table, Cards and Timeline views, creating a workstream, and folding the repository rail and the agent panel.">
-        <figcaption>The clickable mockup, with sample data: approve, answer, switch views, start a workstream, fold the panels. It follows your theme, like this page.</figcaption>
-      </figure>
+      <div class="player">
+        <div class="player-tabs" role="tablist" aria-label="Cockpit demos">
+          <button type="button" role="tab" aria-selected="true" aria-controls="player-video" data-clip="approve"><b>Approve &amp; answer</b><span>From the Needs you cards</span></button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="player-video" data-clip="views"><b>Three views</b><span>Table, Cards, Timeline</span></button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="player-video" data-clip="workstream"><b>New workstream</b><span>A worktree and its agent</span></button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="player-video" data-clip="panels"><b>Fold the panels</b><span>Repos, rail, agent panel</span></button>
+        </div>
+        <video id="player-video" class="player-video" autoplay muted loop playsinline preload="metadata" width="1030" height="340" aria-describedby="player-caption"></video>
+        <p id="player-caption" class="player-caption"></p>
+      </div>
       <ul class="features">
         <li><b>Workstreams.</b> Start a git worktree per line of work, with its own branch and agents, and watch each one.</li>
         <li><b>Fast approvals.</b> The agent's reason, a diff preview and risk badges on every request; Allow, Always allow or Deny from the keyboard.</li>
@@ -206,6 +211,7 @@
         root.dataset.theme = theme
         meta.setAttribute('content', theme === 'dark' ? '#0E1116' : '#F6F7F9')
         buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.choice === picked)) })
+        document.dispatchEvent(new CustomEvent('tower-theme', { detail: theme }))
       }
       buttons.forEach(function (b) {
         b.addEventListener('click', function () {
@@ -218,6 +224,35 @@
       })
       if (media) media.addEventListener('change', apply)
       apply()
+    })()
+
+    // The cockpit demo: one short clip per feature, in the page's theme, cropped to what it shows.
+    (function () {
+      var video = document.getElementById('player-video')
+      var caption = document.getElementById('player-caption')
+      var tabs = document.querySelectorAll('.player-tabs button')
+      var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches
+      var captions = {
+        approve: 'A git push and a question wait on you. Allow the first, answer the second; both agents go back to work.',
+        views: 'The same fleet three ways: a dense table, scannable cards, and a timeline of who worked and who waited.',
+        workstream: 'New workstream in api: name it, give it a task, and it gets its own git worktree, branch and agent.',
+        panels: 'Fold the repositories, shrink the rail to dots, tuck the agent panel away, and bring it all back.',
+      }
+      var clip = 'approve'
+      function show() {
+        var theme = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
+        var src = 'media/' + clip + '-' + theme + '.mp4'
+        if (video.getAttribute('src') !== src) {
+          video.setAttribute('src', src)
+          if (!still) video.play().catch(function () {})
+        }
+        caption.textContent = captions[clip] + ' Sample data, in the clickable mockup.'
+        tabs.forEach(function (t) { t.setAttribute('aria-selected', String(t.dataset.clip === clip)) })
+      }
+      if (still) { video.removeAttribute('autoplay'); video.controls = true }
+      tabs.forEach(function (t) { t.addEventListener('click', function () { clip = t.dataset.clip; show() }) })
+      document.addEventListener('tower-theme', show)
+      show()
     })()
 
     document.querySelectorAll('button.copy').forEach(function (btn) {

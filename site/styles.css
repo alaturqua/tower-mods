@@ -180,11 +180,15 @@ h2 { margin: 0 0 12px; font-size: clamp(28px, 3.4vw, 38px); line-height: 1.15; l
 .theme-switch svg { width: 16px; height: 16px; }
 @media (max-width: 640px) { .theme-switch span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
 
-/* The demo GIF comes in both themes; the page shows the one it is in. */
-.demo-light { display: none !important; }
-:root[data-theme="light"] .demo-light { display: block !important; }
-:root[data-theme="light"] .demo-dark { display: none !important; }
 
-.demo { margin: 0 0 32px; }
-.demo img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); }
-.demo figcaption { margin-top: 10px; color: var(--muted); font-size: 14px; }
+
+/* The cockpit demo: feature tabs over one looping clip. */
+.player { margin: 0 0 36px; display: flex; flex-direction: column; gap: 12px; }
+.player-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 8px; }
+.player-tabs button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 56px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.player-tabs button b { font-size: 15px; }
+.player-tabs button span { color: var(--muted); font-size: 13px; }
+.player-tabs button:hover { border-color: var(--edge); }
+.player-tabs button[aria-selected="true"] { border-color: var(--work); box-shadow: inset 0 -3px 0 var(--work); }
+.player-video { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); background: var(--sunk); }
+.player-caption { margin: 0; color: var(--text2); font-size: 15px; }
