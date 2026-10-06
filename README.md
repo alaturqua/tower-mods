@@ -9,7 +9,7 @@ Site: **[alaturqua.github.io/tower-mods](https://alaturqua.github.io/tower-mods/
   <img src="site/images/approve-dark.webp" alt="The cockpit mockup's Needs you cards: allowing an agent's git push and answering another agent's question">
 </picture>
 
-*Above: the cockpit, the web dashboard in design, as a clickable mockup with sample data. More clips (views, workstreams, panels) are on the [site](https://alaturqua.github.io/tower-mods/#cockpit). What ships today is the `/tower` pane below.*
+*Above: the cockpit, the web dashboard in design, as a mockup with sample data. **[Try it live](https://alaturqua.github.io/tower-mods/demo/)**: approve, switch views, start a workstream, fold the panels. What ships today is the `/tower` pane below.*
 
 ## Install
 

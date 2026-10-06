@@ -157,15 +157,14 @@
       <p class="eyebrow">In design</p>
       <h2 id="cockpit-title">Next: the cockpit</h2>
       <p class="sub">A local web dashboard for when one pane is not enough: every repo and its workstreams on the left, the fleet in the middle, the selected agent's live activity on the right.</p>
-      <div class="player">
-        <div class="player-tabs" role="tablist" aria-label="Cockpit demos">
-          <button type="button" role="tab" aria-selected="true" aria-controls="player-video" data-clip="approve"><b>Approve &amp; answer</b><span>From the Needs you cards</span></button>
-          <button type="button" role="tab" aria-selected="false" aria-controls="player-video" data-clip="views"><b>Three views</b><span>Table, Cards, Timeline</span></button>
-          <button type="button" role="tab" aria-selected="false" aria-controls="player-video" data-clip="workstream"><b>New workstream</b><span>A worktree and its agent</span></button>
-          <button type="button" role="tab" aria-selected="false" aria-controls="player-video" data-clip="panels"><b>Fold the panels</b><span>Repos, rail, agent panel</span></button>
+      <div class="live">
+        <div class="live-bar">
+          <span><b>Live demo</b> · sample data · click anything: Allow, the views, + New workstream, the « » panels</span>
+          <a href="demo/" target="_blank" rel="noopener">Open full screen ↗</a>
         </div>
-        <img id="player-video" class="player-video" src="images/approve-dark.webp" width="1030" height="340" alt="The Needs you cards: allowing a git push, then answering a question with staging." aria-describedby="player-caption">
-        <p id="player-caption" class="player-caption"></p>
+        <div class="live-frame" id="live-frame">
+          <iframe id="live-iframe" src="demo/" title="Tower cockpit live demo with sample data" loading="lazy" width="1440" height="900"></iframe>
+        </div>
       </div>
       <ul class="features">
         <li><b>Workstreams.</b> Start a git worktree per line of work, with its own branch and agents, and watch each one.</li>
@@ -226,35 +225,26 @@
       apply()
     })()
 
-    // The cockpit demo: one short clip per feature, in the page's theme, cropped to what it shows.
+    // The live cockpit: laid out at 1440 x 900 as on a desktop, scaled down only when the
+    // window is narrower, and told the page's theme whenever it changes.
     ;(function () {
-      var video = document.getElementById('player-video')
-      var caption = document.getElementById('player-caption')
-      var tabs = document.querySelectorAll('.player-tabs button')
-      var captions = {
-        approve: 'A git push and a question wait on you. Allow the first, answer the second; both agents go back to work.',
-        views: 'The same fleet three ways: a dense table, scannable cards, and a timeline of who worked and who waited.',
-        workstream: 'New workstream in api: name it, give it a task, and it gets its own git worktree, branch and agent.',
-        panels: 'Fold the repositories, shrink the rail to dots, tuck the agent panel away, and bring it all back.',
+      var frame = document.getElementById('live-frame')
+      var iframe = document.getElementById('live-iframe')
+      function fit() {
+        var scale = Math.min(1, frame.clientWidth / 1440)
+        iframe.style.transform = 'scale(' + scale + ')'
+        frame.style.height = Math.round(900 * scale) + 'px'
       }
-      var alts = {
-        approve: 'The Needs you cards: allowing a git push, then answering a question with staging.',
-        views: 'The fleet switching from Table to Cards to Timeline and back.',
-        workstream: 'The New workstream form filled in for api, then the new workstream with its agent.',
-        panels: 'The repositories folding, the rail shrinking to dots, the agent panel folding, then all opening again.',
-      }
-      var clip = 'approve'
-      function show() {
+      function tell() {
         var theme = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
-        var src = 'images/' + clip + '-' + theme + '.webp'
-        if (video.getAttribute('src') !== src) video.setAttribute('src', src)
-        video.setAttribute('alt', alts[clip])
-        caption.textContent = captions[clip] + ' Sample data, in the clickable mockup.'
-        tabs.forEach(function (t) { t.setAttribute('aria-selected', String(t.dataset.clip === clip)) })
+        if (iframe.contentWindow) iframe.contentWindow.postMessage({ type: 'tower-theme', theme: theme }, location.origin)
       }
-      tabs.forEach(function (t) { t.addEventListener('click', function () { clip = t.dataset.clip; show() }) })
-      document.addEventListener('tower-theme', show)
-      show()
+      window.addEventListener('resize', fit)
+      window.addEventListener('message', function (e) {
+        if (e.origin === location.origin && e.data && e.data.type === 'tower-demo-ready') tell()
+      })
+      document.addEventListener('tower-theme', tell)
+      fit()
     })()
 
     document.querySelectorAll('button.copy').forEach(function (btn) {

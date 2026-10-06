@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tower cockpit: live demo</title>
+  <meta name="description" content="The Tower cockpit mockup, running live with sample data: approve requests, switch views, start workstreams, fold the panels.">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <style>
+    html, body { margin: 0; background: #0E1116; }
+    #app:empty::before { content: "Loading the cockpit…"; display: block; padding: 24px; color: #9AA4B2; font: 15px system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script src="dc-lite.js?v=dev"></script>
+  <script>
+    // Embedded on the site, the page above picks the theme and says so; opened on its
+    // own, the cockpit's own System / Light / Dark switch decides.
+    ;(function () {
+      var cockpit = null
+      var wanted = null
+      function setTheme(theme) {
+        wanted = theme
+        if (cockpit && (theme === 'light' || theme === 'dark')) cockpit.setState({ theme: theme })
+      }
+      window.addEventListener('message', function (e) {
+        if (e.origin === location.origin && e.data && e.data.type === 'tower-theme') setTheme(e.data.theme)
+      })
+      DCLite.mount(document.getElementById('app'), 'cockpit.dc.html?v=dev').then(function (instance) {
+        cockpit = instance
+        if (wanted) setTheme(wanted)
+        if (window.parent !== window) window.parent.postMessage({ type: 'tower-demo-ready' }, location.origin)
+      })
+    })()
+  </script>
+</body>
+</html>
