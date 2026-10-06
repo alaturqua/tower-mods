@@ -30,6 +30,10 @@ jobs:
         with:
           persist-credentials: false
 
+      # Browsers keep styles.css for 10 minutes; a new deploy names a new copy.
+      - name: Stamp the stylesheet with the commit
+        run: sed -i "s/styles\.css?v=dev/styles.css?v=${GITHUB_SHA::7}/" site/index.html
+
       - name: Upload site
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
