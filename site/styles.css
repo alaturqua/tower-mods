@@ -16,12 +16,13 @@
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--ground); color: var(--text); font-family: var(--sans); font-size: 17px; line-height: 1.6; }
 a { color: var(--work); }
-a:hover { color: #8FDBF2; }
+a:not(.btn):hover { color: #8FDBF2; }
 a:focus-visible, button:focus-visible { outline: 2px solid var(--work); outline-offset: 3px; border-radius: 4px; }
 code { font-family: var(--mono); font-size: 0.88em; background: var(--raise); padding: 1px 6px; border-radius: 5px; }
 
 .skip { position: absolute; left: -999px; top: 8px; background: var(--work); color: #0B1A20; padding: 8px 12px; border-radius: 8px; }
 .skip:focus { left: 16px; z-index: 10; }
+a.skip:hover { color: #0B1A20; }
 
 .rail { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; padding: 14px clamp(16px, 4vw, 48px); background: rgba(14, 17, 22, 0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 700; font-size: 18px; }
@@ -39,7 +40,7 @@ h1 { margin: 0 0 20px; font-size: clamp(36px, 5vw, 56px); line-height: 1.08; let
 .btn { display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px; border-radius: 10px; border: 1px solid #2E3643; color: var(--text); text-decoration: none; font-weight: 600; }
 .btn:hover { color: var(--text); background: var(--raise); }
 .btn-primary { background: var(--work); border-color: var(--work); color: #0B1A20; }
-.btn-primary:hover { background: #8FDBF2; color: #0B1A20; }
+a.btn-primary:hover, a.btn-primary:focus-visible { background: #8FDBF2; color: #0B1A20; }
 
 .pane { margin: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #0B0E12; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45); font-family: var(--mono); font-size: 13px; line-height: 1.7; }
 .pane-bar { display: flex; align-items: center; gap: 7px; padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
@@ -51,13 +52,13 @@ h1 { margin: 0 0 20px; font-size: clamp(36px, 5vw, 56px); line-height: 1.08; let
 .pane-body .r { float: right; }
 .pane-head i { color: var(--muted); }
 .pane-body em { font-style: normal; }
-.row.sel { background: var(--raise); border-radius: 4px; }
+.row.sel { background: var(--raise); border-radius: 6px; padding: 6px 8px; margin: 2px -8px; }
 .rule { border-top: 1px solid var(--line); margin: 8px 0 !important; }
 .warn { color: var(--warn); }
 .work { color: var(--work); }
 .ok { color: var(--ok); }
 .dim { color: var(--muted); }
-.key { color: #1A1300; background: var(--warn); border-radius: 3px; }
+.key { color: #1A1300; background: var(--warn); border-radius: 3px; padding: 1px 4px; }
 .key2 { color: var(--text); }
 .input { margin-top: 6px !important; padding: 4px 8px; border: 1px solid #2E3643; border-radius: 6px; color: var(--muted); }
 .pane-status { padding: 8px 16px; border-top: 1px solid var(--line); background: var(--panel); color: var(--muted); white-space: nowrap; overflow-x: auto; }
