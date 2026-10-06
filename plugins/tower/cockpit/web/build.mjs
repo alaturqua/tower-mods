@@ -80,10 +80,28 @@ swap(`<button type="button" style="align-self: flex-start; ${btn}">Ask it to ope
 swap('<ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px">',
   '<sc-if value="{{sel.noFeed}}" hint-placeholder-val="{{ false }}"><p style="margin: 0; color: var(--muted); font-size: 13px">No activity yet. A session reports it once it runs the latest Tower plugin.</p></sc-if>\n        <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; max-height: 420px; overflow-y: auto">')
 
-// The send box suggests the session's slash commands.
+// The send box: typing "/" opens a drop-up of the session's slash commands, as Claude
+// Code's own prompt does. ↑/↓ move, Enter or Tab take one, Esc closes.
 swap('<label for="say" style="font-size: 12px; color: var(--muted)">Send to {{sel.repo}} · {{sel.name}}</label>',
-  '<label for="say" style="font-size: 12px; color: var(--muted)">Send to {{sel.repo}} · {{sel.name}} · type / for its commands</label>\n        <datalist id="say-commands"><sc-for list="{{sel.commands}}" as="c" hint-placeholder-count="0"><option value="{{c.value}}">{{c.label}}</option></sc-for></datalist>')
-swap('<input id="say" value="{{draft}}"', '<input id="say" list="say-commands" autocomplete="off" value="{{draft}}"')
+  '<label for="say" style="font-size: 12px; color: var(--muted)">Send to {{sel.repo}} · {{sel.name}} · type / for its commands</label>')
+swap('<div style="display: flex; gap: 8px">\n          <input id="say" value="{{draft}}"', `<div style="position: relative; display: flex; gap: 8px">
+          <sc-if value="{{cmd.open}}" hint-placeholder-val="{{ false }}">
+            <div id="say-commands" role="listbox" aria-label="Slash commands" style="position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 5; max-height: 340px; overflow-y: auto; border-radius: 10px; border: 1px solid var(--edge); background: var(--panel); box-shadow: 0 -8px 24px rgba(0,0,0,0.18); padding: 4px">
+              <sc-for list="{{cmd.items}}" as="c" hint-placeholder-count="6">
+                <button type="button" role="option" aria-selected="{{c.on}}" onClick="{{c.pick}}" style="{{c.style}}">
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600; white-space: nowrap">{{c.name}}</span>
+                  <span style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px">{{c.description}}</span>
+                </button>
+              </sc-for>
+              <sc-if value="{{cmd.empty}}" hint-placeholder-val="{{ false }}">
+                <div style="padding: 10px 12px; font-size: 13px; color: var(--muted)">No command starts with {{cmd.query}}. Enter sends it as typed.</div>
+              </sc-if>
+              <sc-if value="{{cmd.hasNote}}" hint-placeholder-val="{{ false }}">
+                <div style="padding: 8px 12px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line)">{{cmd.note}}</div>
+              </sc-if>
+            </div>
+          </sc-if>
+          <input id="say" role="combobox" aria-expanded="{{cmd.expanded}}" aria-controls="say-commands" aria-autocomplete="list" autocomplete="off" onKeyDown="{{cmd.key}}" value="{{draft}}"`)
 page = page.replace(/\s*<button type="button" onClick="\{\{pauseSel\}\}"[^\n]*/, '')
 swap(`<button type="button" style="${btn}">Jump to terminal</button>`, `<button type="button" onClick="{{sel.jump}}" style="${btn}">Jump to terminal</button>`)
 swap('<button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bad-edge); background: transparent; color: var(--bad-text)">Stop</button>\n      </div>\n    </aside>',

@@ -26,7 +26,7 @@
 
   const HOLE = /\{\{\s*([^}]+?)\s*\}\}/g
   const WHOLE = /^\{\{\s*([^}]+?)\s*\}\}$/
-  const EVENTS = { onClick: 'click', onSubmit: 'submit', onInput: 'input' }
+  const EVENTS = { onClick: 'click', onSubmit: 'submit', onInput: 'input', onKeyDown: 'keydown' }
 
   function lookup(path, scopes) {
     if (path === 'true') return true
@@ -105,7 +105,7 @@
 
   // The HTML parser lower-cases attribute names; the template's handlers are camelCase.
   function reactName(name) {
-    const map = { onclick: 'onClick', onchange: 'onChange', onsubmit: 'onSubmit', oninput: 'onInput' }
+    const map = { onclick: 'onClick', onchange: 'onChange', onsubmit: 'onSubmit', oninput: 'onInput', onkeydown: 'onKeyDown' }
     return map[name] || name
   }
 
@@ -142,7 +142,7 @@
 
   // One listener per event type on the root: the nearest element with a handler gets it.
   function delegate(root) {
-    for (const type of ['click', 'input', 'change', 'submit']) {
+    for (const type of ['click', 'input', 'change', 'submit', 'keydown']) {
       root.addEventListener(type, e => {
         for (let el = e.target; el && el !== root.parentNode; el = el.parentNode) {
           const handler = el.__on && el.__on[type]

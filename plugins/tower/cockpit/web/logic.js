@@ -9,7 +9,18 @@ var DIFF_STYLES = { hunk: 'color: var(--muted)', ctx: 'color: var(--text2)', del
 var SEG = { working: 'var(--work)', needs: 'var(--warn)', stuck: 'var(--bad)', done: 'var(--ok)', idle: 'transparent' };
 var MODELS = [['', 'Default model'], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku']];
 var MODES = [['auto', 'auto'], ['acceptEdits', 'accept edits'], ['plan', 'plan first'], ['default', 'ask for everything']];
-var BTN_PRIMARY = 'min-height: 40px; padding: 0 14px; border-radius: 8px; border: none; background: var(--warn); color: var(--on-warn); font-weight: 600';
+// Shown when a session has not published its own list (it started before this plugin
+// could): Claude Code's everyday built-ins, typed in full they all still run.
+var BUILTIN_COMMANDS = [
+  ['compact', 'Compact the conversation to free context'], ['clear', 'Start a fresh conversation'],
+  ['cost', 'Show this session\'s cost and usage'], ['context', 'Show what fills the context window'],
+  ['model', 'Switch the model, e.g. /model sonnet'], ['status', 'Show version, model and account'],
+  ['memory', 'Edit CLAUDE.md memory'], ['review', 'Review a pull request'],
+  ['init', 'Write a CLAUDE.md for this repo'], ['permissions', 'Show or change permission rules'],
+  ['agents', 'Manage subagents'], ['mcp', 'Manage MCP servers'], ['help', 'List what Claude Code can do']
+].map(function (c) { return { name: c[0], description: c[1] }; });
+var MENU_MAX = 40;
+var BTN_PRIMARY ='min-height: 40px; padding: 0 14px; border-radius: 8px; border: none; background: var(--warn); color: var(--on-warn); font-weight: 600';
 var BTN_SECONDARY = 'min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--warn-edge); background: transparent; color: var(--text)';
 
 function dot(state, size) {
@@ -42,7 +53,7 @@ class Component extends DCLogic {
       view: saved.view || 'fleet', theme: saved.theme || 'system', systemLight: systemLight,
       folded: saved.folded || {}, railCollapsed: Boolean(saved.railCollapsed), detailCollapsed: Boolean(saved.detailCollapsed),
       formOpen: false, formRepo: null, formPath: null, formWorktree: true, formName: '', formBase: 'main', formModel: '', formMode: 'auto', formTask: '',
-      toast: null, commands: {}
+      toast: null, commands: {}, cmdIndex: 0, cmdClosed: false
     };
   }
 
@@ -88,6 +99,62 @@ class Component extends DCLogic {
       commands[id] = list;
       self.setState({ commands: commands });
     }).catch(function () {});
+  }
+
+  // The slash-command drop-up: open while the draft is "/" plus a command name, before a space.
+  commandMenu(sel) {
+    var self = this, st = this.state;
+    var m = /^\/(\S*)$/.exec(st.draft);
+    var known = sel && st.commands[sel.id];
+    var list = known && known.length ? known : BUILTIN_COMMANDS;
+    var query = m ? m[1].toLowerCase() : '';
+    // Claude Code's own commands before plugins' (`plugin:name`), then the closest match.
+    var rank = function (c) {
+      var name = c.name.toLowerCase();
+      return [name.indexOf(':') >= 0 ? 1 : 0, name === query ? 0 : name.indexOf(query) === 0 ? 1 : 2, name.length];
+    };
+    var hits = list.filter(function (c) { return c.name.toLowerCase().indexOf(query) >= 0; })
+      .map(function (c, i) { return { c: c, r: rank(c), i: i }; })
+      .sort(function (x, y) { return x.r[0] - y.r[0] || x.r[1] - y.r[1] || (query ? x.r[2] - y.r[2] : x.i - y.i); })
+      .map(function (h) { return h.c; })
+      .slice(0, MENU_MAX);
+    var index = Math.min(st.cmdIndex, Math.max(0, hits.length - 1));
+    var open = Boolean(m) && !st.cmdClosed && Boolean(sel);
+    var choose = function (c) {
+      self.setState({ draft: '/' + c.name + ' ', cmdIndex: 0, cmdClosed: true }, function () {
+        var input = document.getElementById('say');
+        if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+      });
+    };
+    return {
+      open: open, expanded: String(open), empty: open && hits.length === 0, query: '/' + query,
+      hasNote: open && !(known && known.length),
+      note: 'This session started before Tower could list its commands, so these are the common built-ins. Restart it to see all of its commands, plugins and skills included.',
+      items: hits.map(function (c, i) {
+        return {
+          name: '/' + c.name, description: c.description, on: String(i === index),
+          style: 'display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: baseline; width: 100%; min-height: 36px; padding: 6px 10px; border: none; border-radius: 7px; text-align: left; color: var(--text); background: ' + (i === index ? 'var(--sel)' : 'transparent'),
+          pick: function () { choose(c); }
+        };
+      }),
+      key: function (e) {
+        if (!open) return;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          var step = e.key === 'ArrowDown' ? 1 : -1;
+          self.setState({ cmdIndex: (index + step + hits.length) % Math.max(1, hits.length) }, function () {
+            var on = document.querySelector('#say-commands [aria-selected="true"]');
+            if (on) on.scrollIntoView({ block: 'nearest' });
+          });
+        } else if ((e.key === 'Enter' || e.key === 'Tab') && hits.length) {
+          e.preventDefault();
+          choose(hits[index]);
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          self.setState({ cmdClosed: true });
+        }
+      }
+    };
   }
 
   agents() {
@@ -421,7 +488,8 @@ class Component extends DCLogic {
         placeholder: p && p.kind === 'question' ? 'Type an answer…' : 'Send a prompt, or / for commands'
       },
       draft: st.draft,
-      typed: function (e) { self.setState({ draft: e.target.value }); },
+      cmd: this.commandMenu(sel),
+      typed: function (e) { self.setState({ draft: e.target.value, cmdClosed: false, cmdIndex: 0 }); },
       send: function (e) {
         if (e && e.preventDefault) e.preventDefault();
         var text = (self.state.draft || '').trim();
