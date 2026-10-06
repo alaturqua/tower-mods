@@ -21,6 +21,12 @@ function stubHost(on: On, git: Git = { branch: 'main', dirty: true }) {
     if (e.argv.includes('rev-parse')) return { value: { ...done, stdout: `${git.branch}\n` } }
     return { value: { ...done, stdout: git.dirty ? ' M README.md\n' : '' } }
   })
+  // What the plugin's other parts touch at start: beacon's status file and the /tower command.
+  on('session.id', () => ({ value: 'sess-1' }))
+  on('fs.exists', () => ({ value: false }))
+  on('fs.write', () => ({ value: undefined }))
+  on('clock.now', () => ({ value: 0 }))
+  on('command.register', () => ({ value: { command: 'tower' } }))
   on('session.start', () => ({ cwd: 'D:/Projects/tower-mods' }))
   on('classic.UserPromptSubmit', () => ({}))
   on('classic.Stop', () => ({}))

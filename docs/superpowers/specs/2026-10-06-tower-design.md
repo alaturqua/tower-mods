@@ -2,6 +2,8 @@
 
 Date: 2026-10-06. Status: approved in chat (approach 1), details decided by Claude on the user's "do all".
 
+Update, same day: beacon, tower and the status line (strip) now ship as one plugin, `tower`, installed in one line. "beacon" and "tower" below name its parts (`hooks/beacon.ts`, `hooks/pane.tsx`), not separate plugins. The pane polls only in a session where `/tower` has run, and its "N need you" count leads the status line, since a plugin has one status entry.
+
 ## Goal
 
 One Claude Code session acts as the control tower. Its pane lists every running session on the machine, across repos, with what each is doing and whether it needs the person. From the pane the person can:

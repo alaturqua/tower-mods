@@ -8,9 +8,11 @@ type $ = EngineInterface
 let showBranch = true
 let showContext = true
 let showCost = true
+let showLine = true
 let pollMs = 5000
 // What git, the model and the usage said last; mode and effort as the engine last reported them.
 let known: StripParts = { folder: '' }
+let waiting = 0
 let shown: string | undefined
 
 function folder(path: string) {
@@ -23,9 +25,19 @@ async function git($: $, root: string, args: string[]) {
 }
 
 // Draws from what is known; no process runs, so it is cheap enough for every tool call.
+// With the line switched off, only the tower's count is left to show.
 function draw($: $) {
-  const line = compose(known)
+  const line = showLine ? compose({ ...known, waiting }) : (compose({ folder: '', waiting }) || undefined)
   if (line !== shown) $.ui.status((shown = line))
+}
+
+// Redraws with the session's own `$`, kept from session.start: `$` never crosses a file.
+let redraw: (() => void) | undefined
+
+// The pane's poll reports how many other sessions wait on you; one status entry carries both.
+export function setWaiting(count: number) {
+  waiting = count
+  redraw?.()
 }
 
 // Re-reads what changes on its own: the branch, the model, the context and the cost.
@@ -57,13 +69,18 @@ function heard($: $, e: { permission_mode?: string; effort?: { level: string } }
   draw($)
 }
 
-export const register: Register = (on, options) => {
+// The status line.
+export const registerStrip: Register = (on, options) => {
   showBranch = options.showBranch !== false
   showContext = options.showContext !== false
   showCost = options.showCost !== false
-  pollMs = Number(options.pollSeconds ?? 5) * 1000
+  showLine = options.statusLine !== false
+  pollMs = Number(options.statusSeconds ?? 5) * 1000
 
-  on('session.start', async ($, e, next) => {
+  // The first line, then a refresh on a timer.
+  on('session.start', { cwd: /^/ }, async ($, e, next) => {
+    redraw = () => draw($)
+    if (!showLine) return next(e)
     const effort = await $.env.get('CLAUDE_EFFORT')
     if (effort && !known.effort) known = { ...known, effort }
     await refresh($).catch(() => {})

@@ -1,25 +1,24 @@
 # tower
 
-A Claude Code plugin marketplace of mods for running many sessions across many repos from one place, like a control tower over its flights.
+A Claude Code plugin for running many sessions across many repos from one place, like a control tower over its flights.
 
 Site: **[alaturqua.github.io/tower-mods](https://alaturqua.github.io/tower-mods/)**
-
-| Plugin | What it does |
-| --- | --- |
-| [tower](plugins/tower) | `/tower` opens a pane listing every running session on this machine, across repos, sorted so whoever needs you is on top. Pick one to send it a prompt, approve or deny what it waits on, answer its question, or jump to its window. Launch a new background session in any repo with a task. |
-| [beacon](plugins/beacon) | Runs in every session. Desktop notification when a session needs you (a permission prompt, an `AskUserQuestion`, a long turn finishing), a status file per session in `~/.claude/tower/sessions/` for the tower to read, and the receiving end of the tower's prompts and answers. Windows toast, macOS `osascript`, Linux `notify-send`. |
-| [strip](plugins/strip) | A status line entry at the bottom: `tower-mods ⎇ main* · Opus 5.5 · high · auto · ctx 42% · $1.23`, that is folder, git branch (`*` when there are uncommitted changes), model, effort, permission mode, context fill and session cost. |
 
 ## Install
 
 ```sh
-claude plugin marketplace add alaturqua/tower-mods
-claude plugin install beacon@tower
-claude plugin install tower@tower
-claude plugin install strip@tower
+claude plugin marketplace add alaturqua/tower-mods && claude plugin install tower@tower
 ```
 
-Install beacon and tower together: beacon in every session, tower wherever you want the control pane (installing it everywhere is harmless; the pane opens only on `/tower`). Mods draw nothing in the VS Code chat panel; run Claude Code in a terminal (VS Code's integrated terminal works) or the desktop app's Code tab.
+Install it everywhere: in each session it reports what that session is doing, and in whichever session you run `/tower` it becomes your control pane. Mods draw nothing in the VS Code chat panel; run Claude Code in a terminal (VS Code's integrated terminal works) or the desktop app's Code tab.
+
+## What you get
+
+| Part | What it does |
+| --- | --- |
+| The `/tower` pane | Every running session on this machine, across repos, sorted so whoever needs you is on top. Pick one to send it a prompt, approve or deny what it waits on, answer its question, or jump to its window. Launch a new background session in any repo with a task. |
+| Notifications | A desktop notification when a session needs you: a permission prompt, an `AskUserQuestion`, a long turn finishing. Windows toast, macOS `osascript`, Linux `notify-send`. Each session also keeps a status file in `~/.claude/tower/sessions/` for the tower to read, and receives the tower's prompts and answers. |
+| Status line | `2 need you · tower-mods ⎇ main* · Opus 5.5 · high · auto · ctx 42% · $1.23`: other sessions waiting on you (once `/tower` has run in this session), folder, git branch (`*` when there are uncommitted changes), model, effort, permission mode, context fill and session cost. |
 
 ## Using the tower
 
@@ -53,47 +52,50 @@ Rows are colored by state in your theme's colors: needs you in the warning color
 | `n` | New session: pick a repo, type a task; it starts in the background with `claude --bg` |
 | `r` | Refresh now (it refreshes every 3 seconds anyway) |
 
-Typing in the field and pressing Enter sends a prompt to the selected session. It runs as soon as that session is idle, as if you had typed it there. The status line shows `tower: N need you` even while the pane is closed.
+Typing in the field and pressing Enter sends a prompt to the selected session. It runs as soon as that session is idle, as if you had typed it there.
 
 The same actions work as commands: `/tower list`, `/tower send <session> <prompt>`, `/tower launch <repo path> <task>`, `/tower add <repo path>` (remembers a repo for the New session picker).
 
 ### Who can be answered from the tower
 
-A permission dialog in a terminal belongs to that terminal, so by default only sessions the tower launched send their permission prompts and questions to the tower. The model is told to wait, your Allow arrives as a "retry" prompt, and the approved call runs once. For a session you started by hand, the tower shows what it waits on and `j` takes you there. Set beacon's `remoteAnswers` to `always` to steer every session from the tower.
+A permission dialog in a terminal belongs to that terminal, so by default only sessions the tower launched send their permission prompts and questions to the tower. The model is told to wait, your Allow arrives as a "retry" prompt, and the approved call runs once. For a session you started by hand, the tower shows what it waits on and `j` takes you there. Set `remoteAnswers` to `always` to steer every session from the tower.
 
-Sending prompts works with every session, beacon or not.
+Sending prompts works with every session, whether it runs this plugin or not.
 
 ## Settings
 
-Change these in `/config` or under `pluginConfigs.<plugin>.options` in `~/.claude/settings.json`:
+Change these in `/config` or under `pluginConfigs.tower.options` in `~/.claude/settings.json`:
 
-| Plugin | Option | Default | Meaning |
-| --- | --- | --- | --- |
-| beacon | `remoteAnswers` | `launched` | Which sessions send permission prompts and questions to the tower: `launched`, `always`, `never` |
-| beacon | `notifyOnDone` | `true` | Notify when a turn ends after `minTurnSeconds` |
-| beacon | `minTurnSeconds` | `30` | Shorter turns end quietly |
-| beacon | `notifyOnIdle` | `false` | Also notify on Claude Code's "still waiting" reminders |
-| tower | `pollSeconds` | `3` | How often the session list refreshes |
-| strip | `showBranch` | `true` | Git branch after the folder |
-| strip | `showContext` | `true` | Context window fill |
-| strip | `showCost` | `true` | Session cost, where the account reports one |
-| strip | `pollSeconds` | `5` | How often branch, context and cost are re-read between turns |
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `notifications` | `true` | Desktop notifications at all |
+| `notifyOnDone` | `true` | Notify when a turn ends after `minTurnSeconds` |
+| `minTurnSeconds` | `30` | Shorter turns end quietly |
+| `notifyOnIdle` | `false` | Also notify on Claude Code's "still waiting" reminders |
+| `remoteAnswers` | `launched` | Which sessions send permission prompts and questions to the tower: `launched`, `always`, `never` |
+| `pollSeconds` | `3` | How often the tower refreshes the session list, once `/tower` has run in this session |
+| `statusLine` | `true` | The status line at all |
+| `showBranch` | `true` | Git branch after the folder |
+| `showContext` | `true` | Context window fill |
+| `showCost` | `true` | Session cost, where the account reports one |
+| `statusSeconds` | `5` | How often branch, context and cost are re-read between turns |
 
-strip learns the permission mode and effort when Claude Code reports them: on each prompt, each tool call and the end of each turn. A Shift+Tab mode switch therefore shows up with your next prompt, and the mode is blank in a new session until the first one.
+The status line learns the permission mode and effort when Claude Code reports them: on each prompt, each tool call and the end of each turn. A Shift+Tab mode switch therefore shows up with your next prompt, and the mode is blank in a new session until the first one.
 
 ## Developing
 
-Add this working copy as a marketplace. Claude Code then reads the plugins straight from the folder instead of an installed copy:
+Add this working copy as a marketplace. Claude Code then reads the plugin straight from the folder instead of an installed copy:
 
 ```sh
 claude plugin marketplace add D:\Projects\tower-mods
-claude plugin install beacon@tower
 claude plugin install tower@tower
 ```
 
-Edit, then run `/reload-plugins` in a session. For hot reload on save, start a session with `claude --plugin-dir D:\Projects\tower-mods\plugins\beacon --plugin-dir D:\Projects\tower-mods\plugins\tower` instead.
+Edit, then run `/reload-plugins` in a session. For hot reload on save, start a session with `claude --plugin-dir D:\Projects\tower-mods\plugins\tower` instead.
 
-Check a plugin before pushing:
+The plugin is one hooks module (`hooks/register.ts`) that registers three parts, each in its own file: `beacon.ts` (status file, notifications, receiving the tower), `pane.tsx` (the `/tower` pane and command) and `strip.ts` (the status line). A part never passes `$` to another file; the engine refuses that.
+
+Check it before pushing:
 
 ```sh
 claude plugin validate plugins/tower

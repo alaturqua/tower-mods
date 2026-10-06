@@ -15,8 +15,8 @@ const DEDUPE_MS = 5000
 const QUIET_TYPES = new Set(['idle_prompt', 'auth_success'])
 const TOWER_MARK = '[tower] '
 
-const pending = atom({ plugin: 'beacon', key: 'pending' } as const, null as BeaconPending | null)
-const approvals = atom({ plugin: 'beacon', key: 'approvals' } as const, [] as string[])
+const pending = atom({ plugin: 'tower', key: 'pending' } as const, null as BeaconPending | null)
+const approvals = atom({ plugin: 'tower', key: 'approvals' } as const, [] as string[])
 
 const WIN_TOAST = `
 $ErrorActionPreference = 'Stop'
@@ -33,6 +33,7 @@ $app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powersh
 let notifyOnDone = true
 let minTurnMs = 30000
 let notifyOnIdle = false
+let notifications = true
 let remoteAnswers = 'launched'
 // Whether this session sends its dialogs to the tower; settled at session.start.
 let isRemote = false
@@ -101,7 +102,7 @@ async function desktopNotify($: $, title: string, body: string) {
 async function alert($: $, kind: string, body: string, state: State) {
   const now = await $.clock.now()
   void report($, state, body)
-  if (now - lastAlertAt < DEDUPE_MS) return
+  if (!notifications || now - lastAlertAt < DEDUPE_MS) return
   lastAlertAt = now
   const title = `${kind} · ${await getLabel($)}`
   void desktopNotify($, title, body).catch(err => $.ui.log(`beacon: notification failed: ${String(err)}`))
@@ -163,12 +164,15 @@ async function answer($: $, msg: Extract<TowerMessage, { kind: 'answer' }>) {
   await report($, 'working')
 }
 
-export const register: Register = (on, options) => {
+// The part in every session: status file, notifications, and the receiving end of the tower.
+export const registerBeacon: Register = (on, options) => {
   notifyOnDone = options.notifyOnDone !== false
   minTurnMs = Number(options.minTurnSeconds ?? 30) * 1000
   notifyOnIdle = options.notifyOnIdle === true
+  notifications = options.notifications !== false
   remoteAnswers = String(options.remoteAnswers ?? 'launched')
 
+  // The plugin's one unmatched session.start; the pane's and the status line's match every cwd.
   on('session.start', async ($, e, next) => {
     isRemote = remoteAnswers === 'always' || (remoteAnswers === 'launched'
       && await $.fs.exists(`${await towerDir($)}/launched/${await $.session.id()}.json`).catch(() => false))
@@ -177,7 +181,7 @@ export const register: Register = (on, options) => {
   })
 
   on('prompt.submit', async ($, e, next) => {
-    if (!(e.origin.kind === 'plugin' && e.origin.name === 'beacon')) lastPrompt = e.text.slice(0, 500)
+    if (!(e.origin.kind === 'plugin' && e.origin.name === 'tower')) lastPrompt = e.text.slice(0, 500)
     return next(e)
   })
 

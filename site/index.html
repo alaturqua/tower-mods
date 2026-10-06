@@ -79,23 +79,23 @@
     </section>
 
     <section id="mods" class="band" aria-labelledby="mods-title">
-      <h2 id="mods-title">Three mods, one marketplace</h2>
-      <p class="sub">Install what you need. They talk to each other through a small status file per session, nothing else.</p>
+      <h2 id="mods-title">One plugin, three parts</h2>
+      <p class="sub">Install it in every session. Each session reports what it is doing through a small status file; whichever one you run <code>/tower</code> in becomes your control pane. Every part can be switched off in <code>/config</code>.</p>
       <div class="cards">
         <article class="card">
           <p class="tag work">in the session you steer from</p>
-          <h3>tower</h3>
+          <h3>/tower pane</h3>
           <p><code>/tower</code> opens a pane listing every running session on this machine, across repos, sorted so whoever needs you is on top. Pick one to send it a prompt, allow or deny what it waits on, answer its question, or jump to its window. Launch a new background agent in any repo with a task.</p>
         </article>
         <article class="card">
           <p class="tag warn">in every session</p>
-          <h3>beacon</h3>
+          <h3>notifications</h3>
           <p>A desktop notification when a session needs you: a permission prompt, a question, a long turn finishing. Writes what each session is doing for the tower to read, and receives the tower's prompts and answers as if you had typed them there.</p>
         </article>
         <article class="card">
           <p class="tag ok">at the bottom</p>
-          <h3>strip</h3>
-          <p>A status line with where you are and how you run: <code>folder ⎇ branch* · model · effort · mode · ctx 42% · $1.23</code>. Every part can be switched off.</p>
+          <h3>status line</h3>
+          <p>A status line with where you are and how you run: <code>2 need you · folder ⎇ branch* · model · effort · mode · ctx 42% · $1.23</code>, led by how many other sessions wait on you.</p>
         </article>
       </div>
     </section>
@@ -104,11 +104,11 @@
       <div>
         <h2 id="answers-title">Answer from the tower, not the terminal</h2>
         <p>Sessions the tower launched send their permission prompts and questions to the tower instead of a dialog nobody is looking at. The agent is told to wait; your Allow arrives as its next prompt, and that exact call runs once.</p>
-        <p>Sessions you started by hand keep their own dialogs: the tower shows what they wait on and takes you there. Want every session steered from the tower? Set beacon's <code>remoteAnswers</code> to <code>always</code>.</p>
+        <p>Sessions you started by hand keep their own dialogs: the tower shows what they wait on and takes you there. Want every session steered from the tower? Set <code>remoteAnswers</code> to <code>always</code>.</p>
       </div>
       <ol class="steps">
         <li><b>Agent asks</b> to run <code>git push origin main</code></li>
-        <li><b>beacon</b> holds the call and flags the session</li>
+        <li><b>The plugin</b> holds the call and flags the session</li>
         <li><b>You press Allow</b> in the tower</li>
         <li><b>The agent retries</b>, and that call alone goes through</li>
       </ol>
@@ -129,13 +129,10 @@
 
     <section id="install" class="band" aria-labelledby="install-title">
       <h2 id="install-title">Install</h2>
-      <p class="sub">Add the marketplace once, then install the mods you want. Mods draw in a terminal (VS Code's integrated terminal works) and the desktop app's Code tab.</p>
+      <p class="sub">One line: add the marketplace, install the plugin. Mods draw in a terminal (VS Code's integrated terminal works) and the desktop app's Code tab.</p>
       <div class="code">
         <button type="button" class="copy" data-copy="install-cmds">Copy</button>
-<pre id="install-cmds"><code>claude plugin marketplace add alaturqua/tower-mods
-claude plugin install beacon@tower
-claude plugin install tower@tower
-claude plugin install strip@tower</code></pre>
+<pre id="install-cmds"><code>claude plugin marketplace add alaturqua/tower-mods &amp;&amp; claude plugin install tower@tower</code></pre>
       </div>
       <p class="note">Then run <code>/tower</code> in the session you want to steer from. Claude Code mods are early access; the API can change between releases.</p>
     </section>

@@ -1,7 +1,7 @@
 {
   "name": "tower",
-  "version": "0.1.0",
-  "description": "A control-tower pane: every running Claude Code session across your repos, what it is doing, and whether it needs you. Send prompts, answer, jump to, or launch sessions from one place.",
+  "version": "0.2.0",
+  "description": "Run every Claude Code session from one place: a /tower pane over all sessions across your repos, desktop notifications when one needs you, answers and prompts sent from the tower, and a status line with folder, branch, model, effort, mode, context and cost.",
   "author": {
     "name": "Isa Inalcik",
     "email": "dynamit1985@gmail.com"
@@ -9,11 +9,72 @@
   "repository": "https://github.com/alaturqua/tower-mods",
   "types": "./types/index.d.ts",
   "userConfig": {
+    "notifications": {
+      "type": "boolean",
+      "title": "Desktop notifications",
+      "description": "Notify when a session needs you: a permission prompt, a question, or a long turn finishing.",
+      "default": true
+    },
+    "notifyOnDone": {
+      "type": "boolean",
+      "title": "Notify when a turn finishes",
+      "description": "Send a notification when a main-loop turn ends after running at least minTurnSeconds.",
+      "default": true
+    },
+    "minTurnSeconds": {
+      "type": "number",
+      "title": "Minimum turn length (seconds)",
+      "description": "Shorter turns finish without a notification.",
+      "default": 30
+    },
+    "notifyOnIdle": {
+      "type": "boolean",
+      "title": "Notify on idle reminders",
+      "description": "Also notify when Claude Code reminds you the session is waiting for input.",
+      "default": false
+    },
+    "remoteAnswers": {
+      "type": "string",
+      "title": "Answer from the tower",
+      "description": "Which sessions send their permission prompts and questions to the tower instead of the terminal: launched (sessions the tower started), always, or never.",
+      "options": ["launched", "always", "never"],
+      "default": "launched"
+    },
     "pollSeconds": {
       "type": "number",
-      "title": "Refresh interval (seconds)",
-      "description": "How often the tower re-reads the list of running sessions.",
+      "title": "Tower refresh (seconds)",
+      "description": "How often the tower re-reads the list of running sessions, once /tower has been opened in this session.",
       "default": 3
+    },
+    "statusLine": {
+      "type": "boolean",
+      "title": "Status line",
+      "description": "Show folder, branch, model, effort, mode, context and cost at the bottom.",
+      "default": true
+    },
+    "showBranch": {
+      "type": "boolean",
+      "title": "Status line: git branch",
+      "description": "The current branch after the folder, with * when there are uncommitted changes.",
+      "default": true
+    },
+    "showContext": {
+      "type": "boolean",
+      "title": "Status line: context fill",
+      "description": "How full the context window is.",
+      "default": true
+    },
+    "showCost": {
+      "type": "boolean",
+      "title": "Status line: session cost",
+      "description": "Spend so far this session, where the account reports it.",
+      "default": true
+    },
+    "statusSeconds": {
+      "type": "number",
+      "title": "Status line refresh (seconds)",
+      "description": "How often branch, context and cost are re-read between turns.",
+      "default": 5
     }
   }
 }

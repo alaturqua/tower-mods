@@ -8,6 +8,8 @@ export type StripParts = {
   mode?: string
   contextPercent?: number
   costUsd?: number
+  // Other sessions waiting on you, from the tower's poll; leads the line when any are.
+  waiting?: number
 }
 
 const MODES: Record<string, string> = {
@@ -32,6 +34,7 @@ export function compose(p: StripParts) {
   const where = p.branch ? `${p.folder} ⎇ ${p.branch}${p.isDirty ? '*' : ''}` : p.folder
   const mode = p.mode === undefined ? undefined : (MODES[p.mode] ?? p.mode)
   return [
+    p.waiting ? `${p.waiting} need${p.waiting === 1 ? 's' : ''} you` : undefined,
     where,
     p.model && modelName(p.model),
     p.effort,

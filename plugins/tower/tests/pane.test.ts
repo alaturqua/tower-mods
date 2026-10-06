@@ -168,6 +168,6 @@ test('the status line counts who needs you', quiet, async ($, on) => {
   await start($)
   const got = await $.command.run({ command: 'tower', args: 'list' } as never)
 
-  expect(host.statuses.at(-1)).toBe('tower: 1 needs you')
+  expect(host.statuses.at(-1)?.startsWith('1 needs you')).toBe(true)
   expect(got.text).toContain('! dbt-platform')
 })

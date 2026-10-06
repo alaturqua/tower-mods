@@ -4,6 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { TowerSession } from '../types'
 import { COLOR, MARK, ago, columns, envelope, merge, tail } from './model'
 import type { AgentRow, StatusFile, TowerMessage } from './model'
+import { setWaiting } from './strip'
 
 type $ = EngineInterface
 
@@ -21,7 +22,8 @@ const failure = atom({ plugin: 'tower', key: 'error' } as const, null as string 
 
 let pollMs = 3000
 let polling: Promise<TowerSession[]> | undefined
-let lastStatus: string | undefined
+// Polling starts the first time the tower is used in a session, not in every session the plugin runs in.
+let isWatching = false
 
 function folder(path: string) {
   return path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || path
@@ -59,9 +61,7 @@ async function pollOnce($: $) {
     const list = merge(agents, statuses, await $.session.id())
     await update($, sessions, () => list)
     await update($, failure, () => null)
-    const waiting = list.filter(s => s.state === 'needs-input').length
-    const status = waiting ? `tower: ${waiting} need${waiting === 1 ? 's' : ''} you` : undefined
-    if (status !== lastStatus) $.ui.status((lastStatus = status))
+    setWaiting(list.filter(s => s.state === 'needs-input').length)
     return list
   } catch (err) {
     await update($, failure, () => String(err instanceof Error ? err.message : err))
@@ -185,19 +185,21 @@ async function runCommand($: $, args: string): Promise<string> {
   return USAGE
 }
 
-export const register: Register = (on, options) => {
+// The control pane and its /tower command.
+export const registerPane: Register = (on, options) => {
   pollMs = Number(options.pollSeconds ?? 3) * 1000
 
-  on('session.start', async ($, e, next) => {
+  // The /tower command. Polling waits until it is first used.
+  on('session.start', { cwd: /(?:)/ }, async ($, e, next) => {
     await $.command.register({ name: 'tower', description: 'Watch and steer every running Claude Code session', argumentHint: '[list | send <session> <prompt> | launch <repo> <task> | add <repo>]' })
-    if (pollMs > 0) {
-      refresh($)
-      $.clock.every(pollMs, () => refresh($))
-    }
     return next(e)
   })
 
   on('command.run', { command: 'tower' }, async ($, e) => {
+    if (!isWatching && pollMs > 0) {
+      isWatching = true
+      $.clock.every(pollMs, () => refresh($))
+    }
     if (e.args.trim()) return { text: await runCommand($, e.args) }
     await update($, view, () => 'list')
     refresh($)
