@@ -154,19 +154,25 @@ export function laneOf(samples, now) {
   return segs
 }
 
-// Repositories with their worktrees, so a workstream with nobody in it still shows.
+// Repositories with their worktrees, so a workstream with nobody in it still shows. A
+// repo removed from the cockpit (`hidden`) stays out even while sessions run in it, and a
+// name given in the cockpit wins over the folder's.
 export function reposOf(agents, known) {
+  const keyOf = root => String(root).toLowerCase().replace(/\\/g, '/').replace(/\/+$/, '')
+  const hidden = new Set(known.filter(r => r.hidden).map(r => keyOf(r.root)))
   const byRoot = new Map()
   const add = (root, name) => {
-    const key = String(root).toLowerCase().replace(/[\\/]+$/, '')
+    const key = keyOf(root)
     if (!byRoot.has(key)) byRoot.set(key, { root, name: name ?? folder(root), worktrees: new Map() })
     return byRoot.get(key)
   }
   for (const r of known) {
+    if (hidden.has(keyOf(r.root))) continue
     const repo = add(r.root, r.name)
-    for (const w of r.worktrees ?? []) if (w.branch) repo.worktrees.set(w.branch, { branch: w.branch, path: w.path })
+    for (const w of r.worktrees ?? []) if (w.branch) repo.worktrees.set(w.branch, { ...w })
   }
   for (const a of agents) {
+    if (hidden.has(keyOf(a.repoRoot))) continue
     const repo = add(a.repoRoot, a.repo)
     // A folder that is not a git repository has no workstreams, only its agents.
     if (a.branch !== '—' && !repo.worktrees.has(a.branch)) repo.worktrees.set(a.branch, { branch: a.branch, path: a.path })

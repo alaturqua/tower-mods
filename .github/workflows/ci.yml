@@ -30,7 +30,7 @@ jobs:
 
       - name: Test the cockpit server
         working-directory: plugins/tower/cockpit
-        run: node --test test/*.test.mjs
+        run: node --test test/model.test.mjs test/server.test.mjs test/actions.test.mjs
 
   plugin:
     name: plugin validate and test

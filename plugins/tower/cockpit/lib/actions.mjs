@@ -99,9 +99,59 @@ export async function merge({ root, number }) {
   return out.ok ? ok(`Merged #${number}.`) : fail(out.stderr.trim().split('\n').pop() || 'Merge failed.')
 }
 
-export async function removeWorktree({ root, path }) {
-  const out = await run('git', ['-C', root, 'worktree', 'remove', path], { timeout: 30000 })
+const same = (a, b) => String(a ?? '').replace(/[\\/]+$/, '').toLowerCase().replace(/\\/g, '/') === String(b ?? '').replace(/[\\/]+$/, '').toLowerCase().replace(/\\/g, '/')
+
+// Never under a running agent, never the main checkout; uncommitted changes need `force`,
+// which the cockpit asks for separately. The branch is kept either way.
+export async function removeWorktree({ root, path, force }, { agents = [] } = {}) {
+  if (same(root, path)) return fail("That is the repository's main checkout; it stays.")
+  const inside = agents.filter(a => same(a.path, path))
+  if (inside.length) return fail(`${inside.map(a => a.name).join(', ')} still works in it. Stop ${inside.length === 1 ? 'that agent' : 'those agents'} first.`)
+  if (!force) {
+    const status = await run('git', ['-C', path, 'status', '--porcelain'], { timeout: 15000 })
+    if (status.ok && status.stdout.trim()) {
+      return { ok: false, dirty: true, message: `It has uncommitted changes (${status.stdout.trim().split('\n').length} files).` }
+    }
+  }
+  const out = await run('git', ['-C', root, 'worktree', 'remove', ...(force ? ['--force'] : []), path], { timeout: 30000 })
   return out.ok ? ok('Worktree removed. Its branch is kept.') : fail(out.stderr.trim().split('\n').pop() || 'Could not remove it.')
+}
+
+// Renames the branch a worktree is on; the worktree's folder keeps its name.
+export async function renameBranch({ path, from, to }) {
+  const name = slug(to)
+  if (!name) return fail('Give the branch a name.')
+  const valid = await run('git', ['check-ref-format', '--branch', name])
+  if (!valid.ok) return fail(`"${name}" is not a valid branch name.`)
+  const out = await run('git', ['-C', path, 'branch', '-m', from, name], { timeout: 15000 })
+  return out.ok ? ok(`Renamed ${from} to ${name}.`) : fail(out.stderr.trim().split('\n').pop() || 'Could not rename it.')
+}
+
+async function saveRepos(edit) {
+  const repos = await knownRepos()
+  edit(repos)
+  await mkdir(TOWER, { recursive: true })
+  await writeFile(join(TOWER, 'repos.json'), JSON.stringify(repos, null, 2))
+}
+
+function entry(repos, root) {
+  let found = repos.find(r => same(r.root, root))
+  if (!found) repos.push(found = { root, name: String(root).split(/[\\/]/).pop() })
+  return found
+}
+
+// Only the name the cockpit shows; the folder and git are untouched.
+export async function renameRepo({ root, name }) {
+  const label = String(name ?? '').trim()
+  if (!label) return fail('Give it a name.')
+  await saveRepos(repos => { entry(repos, root).name = label.slice(0, 60) })
+  return ok(`Renamed to ${label}.`)
+}
+
+// Hidden until added again, even while sessions run in it; nothing on disk changes.
+export async function hideRepo({ root }) {
+  await saveRepos(repos => { entry(repos, root).hidden = true })
+  return ok('Removed from the cockpit. Nothing on disk changed; add it again any time.')
 }
 
 export async function openEditor({ path }) {
@@ -115,9 +165,6 @@ export async function addRepo({ path }) {
   const top = await run('git', ['-C', String(path ?? ''), 'rev-parse', '--show-toplevel'])
   if (!top.ok) return fail('Not a git repository.')
   const root = top.stdout.trim()
-  const repos = await knownRepos()
-  if (!repos.some(r => r.root.toLowerCase() === root.toLowerCase())) repos.push({ root, name: root.split(/[\\/]/).pop() })
-  await mkdir(TOWER, { recursive: true })
-  await writeFile(join(TOWER, 'repos.json'), JSON.stringify(repos, null, 2))
+  await saveRepos(repos => { delete entry(repos, root).hidden })
   return ok(`Added ${root}.`)
 }

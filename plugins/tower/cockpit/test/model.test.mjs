@@ -81,6 +81,20 @@ test('repos list every worktree, with or without an agent', () => {
   assert.deepEqual(repos.map(r => [r.name, r.worktrees.map(w => w.branch)]), [['api', ['main', 'feat/x']], ['web', []]])
 })
 
+test('a repo removed from the cockpit stays out, renames win, and worktrees keep their PR', () => {
+  const agents = [
+    { repo: 'api', repoRoot: 'D:\\Projects\\api', branch: 'main', path: 'D:\\Projects\\api' },
+    { repo: 'old', repoRoot: 'D:\\Projects\\old', branch: 'main', path: 'D:\\Projects\\old' },
+  ]
+  const known = [
+    { root: 'd:\\projects\\API', name: 'Payments API', worktrees: [{ branch: 'feat/x', path: 'D:\\Projects\\api\\wt', pr: { num: 9 } }] },
+    { root: 'D:\\Projects\\old', name: 'old', hidden: true, worktrees: [] },
+  ]
+  const repos = reposOf(agents, known)
+  assert.deepEqual(repos.map(r => r.name), ['Payments API'])
+  assert.equal(repos[0].worktrees.find(w => w.branch === 'feat/x').pr.num, 9)
+})
+
 test('totals and model names', () => {
   assert.deepEqual(totalsOf([{ state: 'needs', cost: 1 }, { state: 'working', health: 'x', cost: 0.5 }]), { total: 2, needs: 1, working: 1, done: 0, alerts: 1, cost: 1.5 })
   assert.equal(modelName('claude-haiku-4-5-20251001'), 'Haiku 4.5')

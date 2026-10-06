@@ -28,6 +28,32 @@ swap('<button type="button" style="min-height: 40px; padding: 0 16px; border-rad
 swap('<button type="button" style="margin-top: 8px; min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px dashed var(--edge); background: transparent; color: var(--muted); text-align: left">+ Add repository</button>',
   '<button type="button" onClick="{{addRepo}}" style="margin-top: 8px; min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px dashed var(--edge); background: transparent; color: var(--muted); text-align: left">+ Add repository</button>')
 
+// Each repo and workstream in the rail gets a ⋯ menu: rename, remove, open, new agent.
+const MENU = (list, open) => `<sc-if value="{{${open}}}" hint-placeholder-val="{{ false }}">
+            <div role="menu" style="margin: 2px 0 6px 30px; display: flex; flex-direction: column; padding: 4px; border-radius: 8px; border: 1px solid var(--edge); background: var(--panel); box-shadow: 0 8px 20px rgba(0,0,0,0.12)">
+              <sc-for list="{{${list}}}" as="m" hint-placeholder-count="2">
+                <button type="button" role="menuitem" onClick="{{m.run}}" style="{{m.style}}">{{m.label}}</button>
+              </sc-for>
+            </div>
+          </sc-if>`
+const DOTS = (open, toggle, label) => `<button type="button" onClick="{{${toggle}}}" aria-haspopup="menu" aria-expanded="{{${open}}}" aria-label="{{${label}}}" style="flex: none; width: 28px; height: 34px; border: none; border-radius: 6px; background: transparent; color: var(--muted); font-size: 16px; line-height: 1">⋯</button>`
+swap(`<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted)">{{repo.summary}}</span>
+            </button>
+          </div>`, `<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted)">{{repo.summary}}</span>
+            </button>
+            <sc-if value="{{repo.showWs}}" hint-placeholder-val="{{ true }}">${DOTS('repo.menuExpanded', 'repo.toggleMenu', 'repo.menuLabel')}</sc-if>
+          </div>
+          ${MENU('repo.menu', 'repo.menuOpen')}`)
+swap('<button type="button" onClick="{{w.pick}}" style="{{w.style}}">', '<div style="display: flex; align-items: center; gap: 2px">\n                <button type="button" onClick="{{w.pick}}" style="{{w.style}}">')
+swap(`<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted)">{{w.count}}</span>
+                </button>
+              </sc-for>`, `<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted)">{{w.count}}</span>
+                </button>
+                ${DOTS('w.menuExpanded', 'w.toggleMenu', 'w.menuLabel')}
+                </div>
+                ${MENU('w.menu', 'w.menuOpen')}
+              </sc-for>`)
+
 // The launch form: a workstream (new worktree) or an agent in place, with real choices.
 swap('New workstream in {{form.repo}}</h2>', '{{form.title}}</h2>')
 swap('Creates a git worktree on its own branch, so agents here never collide with other work in this repo, then starts an agent in it.</span>', `{{form.blurb}}</span>

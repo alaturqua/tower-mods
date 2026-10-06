@@ -41,7 +41,8 @@ const STATIC = {
 
 const ACTIONS = {
   send: actions.send, answer: actions.answer, launch: actions.launch, stop: actions.stop, jump: actions.jump,
-  merge: actions.merge, 'remove-worktree': actions.removeWorktree, 'open-editor': actions.openEditor, 'add-repo': actions.addRepo,
+  merge: actions.merge, 'remove-worktree': actions.removeWorktree, 'rename-branch': actions.renameBranch, 'open-editor': actions.openEditor,
+  'add-repo': actions.addRepo, 'rename-repo': actions.renameRepo, 'hide-repo': actions.hideRepo,
 }
 
 // ---- the fleet, refreshed every two seconds --------------------------------------------
@@ -78,7 +79,8 @@ async function refresh() {
     const withTrees = await Promise.all([...roots].map(async root => {
       const prs = (await prsOf(root)) ?? {}
       const worktrees = ((await worktreesOf(root)) ?? []).map(w => ({ ...w, pr: prs[w.branch] ?? null }))
-      return { root, name: known.find(k => k.root === root)?.name, worktrees }
+      const mine = known.find(k => k.root.toLowerCase() === String(root).toLowerCase())
+      return { root, name: mine?.name, hidden: mine?.hidden, worktrees }
     }))
     snapshot = { agents: built, repos: reposOf(built, withTrees), totals: totalsOf(built), error: null, at: now }
   } catch (err) {
@@ -163,7 +165,8 @@ const server = createServer(async (req, res) => {
   if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) return send(res, 403, { error: 'wrong origin' })
   if (!/^application\/json/.test(req.headers['content-type'] ?? '')) return send(res, 415, { error: 'json only' })
   try {
-    const result = await action(await body(req))
+    // Actions that must not act under a running agent see the fleet as last read.
+    const result = await action(await body(req), snapshot)
     setTimeout(() => { refresh().catch(() => {}) }, 300)
     return send(res, result.ok ? 200 : 400, result)
   } catch (err) {

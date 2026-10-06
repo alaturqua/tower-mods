@@ -53,7 +53,7 @@ class Component extends DCLogic {
       view: saved.view || 'fleet', theme: saved.theme || 'system', systemLight: systemLight,
       folded: saved.folded || {}, railCollapsed: Boolean(saved.railCollapsed), detailCollapsed: Boolean(saved.detailCollapsed),
       formOpen: false, formRepo: null, formPath: null, formWorktree: true, formName: '', formBase: 'main', formModel: '', formMode: 'auto', formTask: '',
-      toast: null, commands: {}, cmdIndex: 0, cmdClosed: false
+      toast: null, commands: {}, cmdIndex: 0, cmdClosed: false, menuFor: null
     };
   }
 
@@ -99,6 +99,34 @@ class Component extends DCLogic {
       commands[id] = list;
       self.setState({ commands: commands });
     }).catch(function () {});
+  }
+
+  // One ⋯ menu open at a time; choosing an item closes it.
+  toggleMenu(id) {
+    this.setState({ menuFor: this.state.menuFor === id ? null : id });
+  }
+
+  menuItem(label, danger, run) {
+    var self = this;
+    return {
+      label: label,
+      style: 'min-height: 34px; padding: 0 10px; border: none; border-radius: 6px; background: transparent; text-align: left; font-size: 13px; color: ' + (danger ? 'var(--bad-text)' : 'var(--text)'),
+      run: function () { self.setState({ menuFor: null }); run(); }
+    };
+  }
+
+  // Refused while it has uncommitted changes; then a second, explicit confirm forces it.
+  removeWorktree(root, w) {
+    var self = this;
+    if (!window.confirm('Remove the worktree ' + w.branch + ' at ' + w.path + '? Its branch is kept.')) return;
+    var leave = function (res) { if (res.ok && self.state.ws === w.branch) self.setState({ ws: null }); };
+    this.post('remove-worktree', { root: root, path: w.path }).then(function (res) {
+      if (res.dirty && window.confirm(res.message + ' Remove anyway? Those changes are deleted for good.')) {
+        self.post('remove-worktree', { root: root, path: w.path, force: true }).then(leave);
+      } else {
+        leave(res);
+      }
+    });
   }
 
   // The slash-command drop-up: open while the draft is "/" plus a command name, before a space.
@@ -255,15 +283,48 @@ class Component extends DCLogic {
         style: 'flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 8px; border: none; color: var(--text); background: ' + (active ? 'var(--sel)' : 'transparent') + '; font-weight: ' + (st.repo === r.root ? '600' : '400'),
         pick: function () { self.setState({ repo: r.root, ws: null }); },
         newWs: function () { self.openForm(r.root, null, true); },
+        menuOpen: st.menuFor === 'repo:' + r.root, menuExpanded: String(st.menuFor === 'repo:' + r.root),
+        menuLabel: 'Actions for ' + r.name,
+        toggleMenu: function () { self.toggleMenu('repo:' + r.root); },
+        menu: isAll ? [] : [
+          self.menuItem('Rename…', false, function () {
+            var name = window.prompt('Name to show for ' + r.root + ' (only in the cockpit):', r.name);
+            if (name && name.trim()) self.post('rename-repo', { root: r.root, name: name.trim() });
+          }),
+          self.menuItem('Remove from cockpit', true, function () {
+            if (!window.confirm('Remove ' + r.name + ' from the cockpit? Nothing on disk changes, and its sessions keep running. Add it again any time with + Add repository.')) return;
+            self.post('hide-repo', { root: r.root }).then(function (res) { if (res.ok && self.state.repo === r.root) self.setState({ repo: 'all', ws: null }); });
+          })
+        ],
         ws: r.worktrees.map(function (w) {
           var inWs = mine.filter(function (a) { return a.branch === w.branch; });
           var on = st.repo === r.root && st.ws === w.branch;
+          var isMain = key(w.path) === key(r.root);
+          var menuId = 'ws:' + r.root + '|' + w.branch;
+          var items = [
+            self.menuItem('New agent here', false, function () { self.openForm(r.root, w.path, false); self.setState({ repo: r.root, ws: w.branch }); }),
+            self.menuItem('Open in editor', false, function () { self.post('open-editor', { path: w.path }); })
+          ];
+          if (!isMain) {
+            items.push(self.menuItem('Rename branch…', false, function () {
+              var to = window.prompt('New name for the branch ' + w.branch + ':', w.branch);
+              if (!to || to.trim() === w.branch) return;
+              self.post('rename-branch', { path: w.path, from: w.branch, to: to.trim() }).then(function (res) {
+                if (res.ok && self.state.ws === w.branch) self.setState({ ws: to.trim().replace(/\s+/g, '-') });
+              });
+            }));
+            items.push(self.menuItem('Remove worktree…', true, function () { self.removeWorktree(r.root, w); }));
+          }
           return {
             name: w.branch, count: String(inWs.length), add: String(sum(inWs, 'add')), del: String(sum(inWs, 'del')),
             prShort: w.pr ? '· #' + w.pr.num : '',
             dot: dot(inWs.length ? worstOf(inWs) : 'idle', 7),
-            style: 'display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 2px 8px; border-radius: 6px; border: none; color: var(--text); background: ' + (on ? 'var(--sel)' : 'transparent') + '; box-shadow: ' + (on ? 'inset 2px 0 0 var(--work)' : 'none'),
-            pick: function () { self.setState({ repo: r.root, ws: w.branch }); }
+            style: 'flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 2px 8px; border-radius: 6px; border: none; color: var(--text); background: ' + (on ? 'var(--sel)' : 'transparent') + '; box-shadow: ' + (on ? 'inset 2px 0 0 var(--work)' : 'none'),
+            pick: function () { self.setState({ repo: r.root, ws: w.branch }); },
+            menuOpen: st.menuFor === menuId, menuExpanded: String(st.menuFor === menuId),
+            menuLabel: 'Actions for ' + w.branch,
+            toggleMenu: function () { self.toggleMenu(menuId); },
+            menu: items
           };
         })
       };
@@ -413,11 +474,7 @@ class Component extends DCLogic {
           if (!wsAgents[0]) { self.toast('No agent in this workstream to ask.', true); return; }
           self.post('send', { id: wsAgents[0].id, text: 'Push this branch and open a pull request for it with gh pr create.' });
         },
-        remove: function () {
-          if (window.confirm('Remove the worktree at ' + wsTree.path + '? Its branch stays.')) {
-            self.post('remove-worktree', { root: wsRepo.root, path: wsTree.path }).then(function (res) { if (res.ok) self.setState({ ws: null }); });
-          }
-        }
+        remove: function () { self.removeWorktree(wsRepo.root, wsTree); }
       },
       fleet: { total: String(data.totals.total), needs: String(data.totals.needs), working: String(data.totals.working), done: String(data.totals.done), alerts: String(data.totals.alerts), cost: money(data.totals.cost) },
       repos: repos,
