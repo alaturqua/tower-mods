@@ -1,7 +1,8 @@
-// A small renderer for the cockpit mockup's .dc.html file, so the site can run the
-// mockup live instead of showing recordings of it. It supports what that file uses:
-// {{path}} holes, <sc-for>, <sc-if>, on* handlers, and a DCLogic class whose
-// renderVals() feeds the template. Every setState re-renders the whole tree.
+// A small renderer for the cockpit's .dc.html file: the site's live demo and the real
+// cockpit both run on it. It supports what that file uses: {{path}} holes, <sc-for>,
+// <sc-if>, on* handlers, and a DCLogic class whose renderVals() feeds the template.
+// Every setState renders a fresh tree and patches the page to match it, so an open
+// dropdown, a scrolled list or a selection survives a live update.
 (function () {
   'use strict'
 
@@ -87,8 +88,9 @@
       const whole = WHOLE.exec(value)
       const attr = node.getAttributeNames ? reactName(name) : name
       if (whole && attr.startsWith('on') && attr.length > 2) {
+        // Kept on the element; one listener on the root calls it (see delegate).
         const handler = lookup(whole[1], scopes)
-        if (typeof handler === 'function') el.addEventListener(eventFor(attr, node), handler)
+        if (typeof handler === 'function') (el.__on || (el.__on = {}))[eventFor(attr, node)] = handler
         continue
       }
       const resolved = whole ? lookup(whole[1], scopes) : interpolate(value, scopes)
@@ -107,19 +109,47 @@
     return map[name] || name
   }
 
-  // Re-rendering rebuilds the inputs; keep the one being typed in focused, caret and all.
-  function snapshotFocus(root) {
-    const el = document.activeElement
-    if (!el || !root.contains(el) || !el.id) return null
-    return { id: el.id, start: el.selectionStart, end: el.selectionEnd }
+  // Patch `live` to look like `next`, keeping every node that can stay. Elements match by
+  // position and tag; anything else is replaced.
+  function morph(live, next) {
+    if (live.nodeType !== next.nodeType || live.nodeName !== next.nodeName) {
+      live.replaceWith(next)
+      return
+    }
+    if (live.nodeType === Node.TEXT_NODE) {
+      if (live.nodeValue !== next.nodeValue) live.nodeValue = next.nodeValue
+      return
+    }
+    if (live.nodeType !== Node.ELEMENT_NODE) return
+    for (const { name } of Array.from(live.attributes)) if (!next.hasAttribute(name)) live.removeAttribute(name)
+    for (const { name, value } of Array.from(next.attributes)) if (live.getAttribute(name) !== value) live.setAttribute(name, value)
+    live.__on = next.__on
+    morphChildren(live, next)
+    // Form state lives in properties; the one being typed in is left to the person.
+    if ('checked' in next && live.checked !== next.checked) live.checked = next.checked
+    if ('value' in next && live !== document.activeElement && live.value !== next.value) live.value = next.value
   }
 
-  function restoreFocus(root, saved) {
-    if (!saved) return
-    const el = root.querySelector('#' + CSS.escape(saved.id))
-    if (!el) return
-    el.focus()
-    if (saved.start != null && el.setSelectionRange) el.setSelectionRange(saved.start, saved.end)
+  function morphChildren(live, next) {
+    const want = Array.from(next.childNodes)
+    const have = Array.from(live.childNodes)
+    want.forEach((node, i) => {
+      if (i < have.length) morph(have[i], node)
+      else live.appendChild(node)
+    })
+    for (let i = want.length; i < have.length; i++) have[i].remove()
+  }
+
+  // One listener per event type on the root: the nearest element with a handler gets it.
+  function delegate(root) {
+    for (const type of ['click', 'input', 'change', 'submit']) {
+      root.addEventListener(type, e => {
+        for (let el = e.target; el && el !== root.parentNode; el = el.parentNode) {
+          const handler = el.__on && el.__on[type]
+          if (handler) { handler(e); return }
+        }
+      })
+    }
   }
 
   async function mount(root, url) {
@@ -132,13 +162,12 @@
     const code = doc.querySelector('script[data-dc-script]').textContent
     const Component = new Function('DCLogic', code + '\nreturn Component;')(DCLogic)
     const instance = new Component({})
+    delegate(root)
     instance.__render = () => {
-      const saved = snapshotFocus(root)
       const vals = instance.renderVals()
-      const out = document.createDocumentFragment()
+      const out = document.createElement('div')
       renderNodes(template.childNodes, [vals], out)
-      root.replaceChildren(out)
-      restoreFocus(root, saved)
+      morphChildren(root, out)
     }
     instance.__render()
     if (instance.componentDidMount) instance.componentDidMount()

@@ -382,7 +382,7 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
       </div>
 
       <sc-if value="{{tabIs.activity}}" hint-placeholder-val="{{ true }}">
-        <sc-if value="{{sel.hasFeed}}" hint-placeholder-val="{{ true }}"><span></span></sc-if>
+        <sc-if value="{{sel.noFeed}}" hint-placeholder-val="{{ false }}"><p style="margin: 0; color: var(--muted); font-size: 13px">No activity yet. A session reports it once it runs the latest Tower plugin.</p></sc-if>
         <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; max-height: 420px; overflow-y: auto">
           <sc-for list="{{sel.feed}}" as="f" hint-placeholder-count="6">
             <li style="display: grid; grid-template-columns: 44px 18px 1fr; gap: 8px; padding: 6px 4px; border-radius: 6px; align-items: baseline">
@@ -850,7 +850,7 @@ class Component extends DCLogic {
         kindLabel: p ? (p.kind === 'question' ? 'Asks you' : p.kind === 'edit' ? 'Wants to edit' : p.kind === 'local' ? 'Waiting in its terminal' : 'Wants to run') : '',
         detail: p ? p.detail : '',
         actions: this.actionsFor(sel),
-        hasFeed: (sel.feed || []).length > 0,
+        noFeed: (sel.feed || []).length === 0,
         feed: (sel.feed || []).slice().reverse().map(function (f) {
           return { t: f[0], icon: ICONS[f[1]] || '·', iconStyle: 'color: ' + (ICON_COLORS[f[1]] || 'var(--muted)') + '; font-weight: 700', text: f[2],
             textStyle: f[1] === 'you' ? 'color: var(--muted); font-style: italic' : (f[1] === 'wait' ? 'color: var(--warn)' : 'color: var(--text)') };

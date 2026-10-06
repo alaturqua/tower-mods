@@ -78,7 +78,7 @@ swap(`<button type="button" style="${btn}">Open on GitHub</button>`, `<a href="{
 swap('<button type="button" style="{{sel.mergeStyle}}">{{sel.mergeLabel}}</button>', '<button type="button" onClick="{{sel.merge}}" style="{{sel.mergeStyle}}">{{sel.mergeLabel}}</button>')
 swap(`<button type="button" style="align-self: flex-start; ${btn}">Ask it to open one</button>`, `<button type="button" onClick="{{sel.askPr}}" style="align-self: flex-start; ${btn}">Ask it to open one</button>`)
 swap('<ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px">',
-  '<sc-if value="{{sel.hasFeed}}" hint-placeholder-val="{{ true }}"><span></span></sc-if>\n        <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; max-height: 420px; overflow-y: auto">')
+  '<sc-if value="{{sel.noFeed}}" hint-placeholder-val="{{ false }}"><p style="margin: 0; color: var(--muted); font-size: 13px">No activity yet. A session reports it once it runs the latest Tower plugin.</p></sc-if>\n        <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; max-height: 420px; overflow-y: auto">')
 
 // The send box suggests the session's slash commands.
 swap('<label for="say" style="font-size: 12px; color: var(--muted)">Send to {{sel.repo}} · {{sel.name}}</label>',

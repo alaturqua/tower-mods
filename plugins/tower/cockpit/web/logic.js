@@ -396,7 +396,7 @@ class Component extends DCLogic {
         kindLabel: p ? (p.kind === 'question' ? 'Asks you' : p.kind === 'edit' ? 'Wants to edit' : p.kind === 'local' ? 'Waiting in its terminal' : 'Wants to run') : '',
         detail: p ? p.detail : '',
         actions: this.actionsFor(sel),
-        hasFeed: (sel.feed || []).length > 0,
+        noFeed: (sel.feed || []).length === 0,
         feed: (sel.feed || []).slice().reverse().map(function (f) {
           return { t: f[0], icon: ICONS[f[1]] || '·', iconStyle: 'color: ' + (ICON_COLORS[f[1]] || 'var(--muted)') + '; font-weight: 700', text: f[2],
             textStyle: f[1] === 'you' ? 'color: var(--muted); font-style: italic' : (f[1] === 'wait' ? 'color: var(--warn)' : 'color: var(--text)') };
