@@ -6,17 +6,29 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { createServer } from 'node:http'
+import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import * as actions from './lib/actions.mjs'
-import { TOWER, agents, commandsOf, gitOf, knownRepos, prsOf, run, statusOf, worktreesOf } from './lib/collect.mjs'
+import { TOWER, agents, commandsOf, gitOf, inboxCount, knownRepos, prsOf, run, statusOf, worktreesOf } from './lib/collect.mjs'
 import { laneOf, reposOf, toAgent, totalsOf } from './lib/model.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const argv = process.argv.slice(2)
 const PORT = Number(argv[argv.indexOf('--port') + 1]) || Number(process.env.TOWER_COCKPIT_PORT) || 4747
-const TOKEN = randomBytes(24).toString('hex')
+// The token outlives a restart, so an open cockpit tab keeps working; cockpit.json is the
+// user's own file, as private as the sessions it describes.
+const TOKEN = await previousToken() ?? randomBytes(24).toString('hex')
+
+async function previousToken() {
+  try {
+    const { url } = JSON.parse(await readFile(join(process.env.TOWER_HOME || join(homedir(), '.claude', 'tower'), 'cockpit.json'), 'utf8'))
+    return /[?&]t=([a-f0-9]{48})\b/.exec(url)?.[1] ?? null
+  } catch {
+    return null
+  }
+}
 const REFRESH_MS = 2000
 const HISTORY_MS = 2 * 60 * 60 * 1000
 
@@ -51,12 +63,12 @@ async function refresh() {
   try {
     const rows = await agents()
     const list = await Promise.all(rows.map(async row => {
-      const [status, git] = await Promise.all([statusOf(row.sessionId), gitOf(row.cwd)])
+      const [status, git, inbox] = await Promise.all([statusOf(row.sessionId), gitOf(row.cwd), inboxCount(row.sessionId)])
       const prs = git ? (await prsOf(git.repoRoot)) ?? {} : {}
-      return { row, status, git, pr: git ? prs[git.branch] ?? null : null }
+      return { row, status, git, inbox, pr: git ? prs[git.branch] ?? null : null }
     }))
-    const built = list.map(({ row, status, git, pr }) => {
-      const agent = toAgent({ row, status, git, pr, lane: [], now })
+    const built = list.map(({ row, status, git, inbox, pr }) => {
+      const agent = toAgent({ row, status, git, pr, inbox, lane: [], now })
       remember(agent.id, agent.health ? 'stuck' : agent.state, now)
       agent.lane = laneOf(history.get(agent.id), now)
       return agent

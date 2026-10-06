@@ -83,7 +83,13 @@ swap('<ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-di
 // The send box: typing "/" opens a drop-up of the session's slash commands, as Claude
 // Code's own prompt does. ↑/↓ move, Enter or Tab take one, Esc closes.
 swap('<label for="say" style="font-size: 12px; color: var(--muted)">Send to {{sel.repo}} · {{sel.name}}</label>',
-  '<label for="say" style="font-size: 12px; color: var(--muted)">Send to {{sel.repo}} · {{sel.name}} · type / for its commands</label>')
+  `<label for="say" style="font-size: 12px; color: var(--muted)">Send to {{sel.repo}} · {{sel.name}} · type / for its commands</label>
+        <sc-if value="{{sel.cantSteer}}" hint-placeholder-val="{{ false }}">
+          <div role="note" style="padding: 8px 10px; border-radius: 8px; background: var(--warn-bg); border: 1px solid var(--warn-edge); font-size: 13px; color: var(--text2)">This session runs an older Tower plugin, so it can't receive from the cockpit. Restart it (or run <code>/reload-plugins</code> in it) to steer it from here.</div>
+        </sc-if>
+        <sc-if value="{{sel.hasQueued}}" hint-placeholder-val="{{ false }}">
+          <div role="status" style="font-size: 12px; color: var(--warn)">{{sel.queuedNote}}</div>
+        </sc-if>`)
 swap('<div style="display: flex; gap: 8px">\n          <input id="say" value="{{draft}}"', `<div style="position: relative; display: flex; gap: 8px">
           <sc-if value="{{cmd.open}}" hint-placeholder-val="{{ false }}">
             <div id="say-commands" role="listbox" aria-label="Slash commands" style="position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 5; max-height: 340px; overflow-y: auto; border-radius: 10px; border: 1px solid var(--edge); background: var(--panel); box-shadow: 0 -8px 24px rgba(0,0,0,0.18); padding: 4px">
@@ -106,6 +112,9 @@ page = page.replace(/\s*<button type="button" onClick="\{\{pauseSel\}\}"[^\n]*/,
 swap(`<button type="button" style="${btn}">Jump to terminal</button>`, `<button type="button" onClick="{{sel.jump}}" style="${btn}">Jump to terminal</button>`)
 swap('<button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bad-edge); background: transparent; color: var(--bad-text)">Stop</button>\n      </div>\n    </aside>',
   '<button type="button" onClick="{{sel.stop}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bad-edge); background: transparent; color: var(--bad-text)">Stop</button>\n      </div>\n    </aside>')
+
+swap('<button type="button" onClick="{{send}}" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">Send</button>',
+  '<button type="button" onClick="{{send}}" style="{{sel.sendStyle}}">Send</button>')
 
 // Results of actions, as a toast.
 swap('  </div>\n</div>\n</x-dc>', `  </div>

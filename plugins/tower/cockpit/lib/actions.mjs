@@ -2,7 +2,8 @@
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { appendFile, mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { TOWER, claude, claudeBin, knownRepos, run } from './collect.mjs'
 
@@ -14,14 +15,16 @@ const fail = message => ({ ok: false, message })
 async function tell(id, message) {
   if (!/^[\w-]+$/.test(id ?? '')) return fail('No such session.')
   await mkdir(join(TOWER, 'inbox'), { recursive: true })
-  await appendFile(join(TOWER, 'inbox', `${id}.jsonl`), JSON.stringify({ v: 1, ...message }) + '\n')
+  await appendFile(join(TOWER, 'inbox', `${id}.jsonl`), JSON.stringify({ v: 1, ...message, at: new Date().toISOString() }) + '\n')
   return null
 }
 
+// Queued, not yet run: the session picks it up within a second or two, and the cockpit
+// shows it as waiting until it has.
 export async function send({ id, text }) {
   const words = String(text ?? '').trim()
   if (!words) return fail('Nothing to send.')
-  return (await tell(id, { kind: 'prompt', text: words })) ?? ok(words.startsWith('/') ? `Ran ${words.split(/\s/)[0]}.` : 'Sent.')
+  return (await tell(id, { kind: 'prompt', text: words })) ?? ok(words.startsWith('/') ? `Queued ${words.split(/\s/)[0]}.` : 'Queued.')
 }
 
 export async function answer({ id, pendingId, allow, text }) {
@@ -64,9 +67,11 @@ export async function stop({ id, kind }) {
   return out.ok ? ok('Stopped.') : fail(out.stderr.trim() || 'Could not stop it.')
 }
 
-const JUMP_PS = '$ok = (New-Object -ComObject WScript.Shell).AppActivate($env:TOWER_TITLE); if (-not $ok) { exit 1 }'
+const APPS = { Code: 'VS Code', 'Code - Insiders': 'VS Code Insiders', WindowsTerminal: 'Windows Terminal', Cursor: 'Cursor' }
 
-export async function jump({ id, kind, name, path }) {
+// A background session opens in a new terminal tab, attached. A terminal session's window
+// is found by process (lib/jump.ps1): window titles name the tab or the editor, not the session.
+export async function jump({ id, kind, pid, path }) {
   if (kind === 'bg') {
     const bin = await claudeBin()
     if (process.platform === 'win32') {
@@ -75,13 +80,17 @@ export async function jump({ id, kind, name, path }) {
     }
     return fail(`Run: claude attach ${id}`)
   }
-  if (process.platform === 'win32') {
+  if (process.platform === 'win32' && pid) {
     const out = await new Promise(resolve => {
-      execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', JUMP_PS], { env: { ...process.env, TOWER_TITLE: name }, windowsHide: true, timeout: 10000 }, err => resolve(!err))
+      execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', join(dirname(fileURLToPath(import.meta.url)), 'jump.ps1')],
+        { env: { ...process.env, TOWER_PID: String(pid) }, windowsHide: true, timeout: 15000 },
+        (err, stdout) => resolve({ ok: !err, app: String(stdout).split('\t')[0].trim() }))
     })
-    if (out) return ok('Switched to its window.')
+    const app = APPS[out.app] ?? out.app
+    if (out.ok) return ok(`Brought ${app} forward. The session is in its terminal${app === 'VS Code' ? ' panel' : ' tabs'}.`)
+    if (out.app) return fail(`Windows would not bring ${app} forward; switch to it yourself. The session runs in ${path}.`)
   }
-  return fail(`Couldn't find its window; it runs in ${path}.`)
+  return fail(`Couldn't find its window. It runs in ${path}.`)
 }
 
 export async function merge({ root, number }) {

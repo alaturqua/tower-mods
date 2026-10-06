@@ -91,8 +91,9 @@ export function pendingOf(status, state) {
   return null
 }
 
-// One agent as the screen draws it.
-export function toAgent({ row, status, git, pr, lane, now }) {
+// One agent as the screen draws it. `inbox` is how many lines its inbox file holds.
+export function toAgent({ row, status, git, pr, lane, inbox = 0, now }) {
+  const canSteer = status?.canReceive === true
   const state = stateOf(row, status)
   const pending = pendingOf(status, state)
   const updated = Date.parse(status?.updatedAt ?? '') || row.startedAt || now
@@ -105,6 +106,10 @@ export function toAgent({ row, status, git, pr, lane, now }) {
     kind: row.kind === 'background' ? 'bg' : '',
     state,
     hasBeacon: Boolean(status && BEACON_STATES.has(status.state)),
+    canSteer,
+    // Sent from the cockpit, not yet picked up by the session.
+    queued: canSteer ? Math.max(0, inbox - (status.inboxSeen ?? 0)) : 0,
+    pid: row.pid ?? null,
     doing: pending ? `${pending.kind === 'question' ? 'Asks' : 'Waiting'}: ${pending.detail}` : (status?.message ?? (state === 'working' ? 'Working' : 'Waiting for your next prompt')),
     waited: Number.isNaN(since) ? 0 : Math.max(0, Math.round((now - since) / 60000)),
     age: ago(updated, now),

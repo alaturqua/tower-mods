@@ -72,6 +72,20 @@ test('a prompt the cockpit appends to the inbox is submitted once', async ($, on
   expect(host.lastStatus().activity.at(-1)).toMatchObject({ kind: 'sent', text: 'run the tests' })
 })
 
+test('a message sent before the session started is skipped, and the session says it can receive', async ($, on) => {
+  const host = stubHost(on)
+  on('session.start', () => ({ cwd: 'D:/Projects/dbt-platform' }))
+  const stale = new Date(Date.now() - 10 * 60000).toISOString()
+  host.files[INBOX] = JSON.stringify({ v: 1, kind: 'prompt', text: '/status', at: stale }) + '\n'
+    + JSON.stringify({ v: 1, kind: 'prompt', text: 'fresh one', at: new Date().toISOString() }) + '\n'
+  host.tick(2)
+  await $.session.start({ source: 'startup', cwd: 'D:/Projects/dbt-platform' } as never)
+  await new Promise(resolve => setTimeout(() => resolve(undefined), 50))
+
+  expect(host.prompts).toEqual(['fresh one'])
+  expect(host.lastStatus()).toMatchObject({ canReceive: true, inboxSeen: 2 })
+})
+
 test('a slash command from the tower runs as a command, not as text', async ($, on) => {
   const host = stubHost(on)
   const ran: { command: string; args: string }[] = []

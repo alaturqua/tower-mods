@@ -161,9 +161,11 @@ class Component extends DCLogic {
     return (this.state.data.agents || []).slice().sort(function (x, y) { return RANK[x.state] - RANK[y.state] || (y.waited || 0) - (x.waited || 0); });
   }
 
+  // The one picked, else the first that can be steered from here, else the first.
   selectedAgent(list) {
     var st = this.state;
-    return list.filter(function (a) { return a.id === st.selected; })[0] || list[0] || null;
+    return list.filter(function (a) { return a.id === st.selected; })[0]
+      || list.filter(function (a) { return a.canSteer; })[0] || list[0] || null;
   }
 
   openForm(root, path, worktree) {
@@ -186,7 +188,7 @@ class Component extends DCLogic {
   actionsFor(a) {
     var self = this, p = a.pending;
     if (!p) return [];
-    if (p.kind === 'local') return [{ label: 'Jump to it', style: BTN_PRIMARY, run: function () { self.post('jump', { id: a.id, kind: a.kind, name: a.name, path: a.path }); } }];
+    if (p.kind === 'local') return [{ label: 'Jump to it', style: BTN_PRIMARY, run: function () { self.post('jump', { id: a.id, kind: a.kind, pid: a.pid, path: a.path }); } }];
     if (p.kind === 'question') {
       return (p.options || []).slice(0, 4).map(function (opt, i) {
         return { label: opt + '  ' + (i + 1), style: i === 0 ? BTN_PRIMARY : BTN_SECONDARY, run: function () { self.post('answer', { id: a.id, pendingId: p.id, text: opt }); } };
@@ -482,10 +484,14 @@ class Component extends DCLogic {
         },
         askPr: function () { self.post('send', { id: sel.id, text: 'Push this branch and open a pull request for it with gh pr create.' }); },
         openEditor: function () { self.post('open-editor', { path: sel.path }); },
-        jump: function () { self.post('jump', { id: sel.id, kind: sel.kind, name: sel.name, path: sel.path }); },
+        jump: function () { self.post('jump', { id: sel.id, kind: sel.kind, pid: sel.pid, path: sel.path }); },
         stop: function () { if (window.confirm('Stop ' + sel.repo + ' · ' + sel.name + '?')) self.post('stop', { id: sel.id, kind: sel.kind }); },
         commands: cmds.map(function (c) { return { value: '/' + c.name, label: c.description }; }),
-        placeholder: p && p.kind === 'question' ? 'Type an answer…' : 'Send a prompt, or / for commands'
+        placeholder: !sel.canSteer ? 'This session can\'t receive from the cockpit yet' : p && p.kind === 'question' ? 'Type an answer…' : 'Send a prompt, or / for commands',
+        cantSteer: !sel.canSteer,
+        hasQueued: sel.queued > 0,
+        queuedNote: sel.queued === 1 ? 'Waiting for ' + sel.name + ' to pick up your message…' : 'Waiting for ' + sel.name + ' to pick up ' + sel.queued + ' messages…',
+        sendStyle: 'min-height: 44px; padding: 0 16px; border-radius: 8px; border: none; font-weight: 600; background: ' + (sel.canSteer ? 'var(--work)' : 'var(--chip)') + '; color: ' + (sel.canSteer ? 'var(--on-work)' : 'var(--faint)')
       },
       draft: st.draft,
       cmd: this.commandMenu(sel),
@@ -494,7 +500,8 @@ class Component extends DCLogic {
         if (e && e.preventDefault) e.preventDefault();
         var text = (self.state.draft || '').trim();
         if (!text || !sel) return;
-        var q = sel.pending && sel.pending.kind === 'question' && !text.startsWith('/');
+        if (!sel.canSteer) { self.toast(sel.name + ' runs an older Tower plugin and can\'t receive from here. Restart it, then send again.', true); return; }
+        var q =sel.pending && sel.pending.kind === 'question' && !text.startsWith('/');
         self.post(q ? 'answer' : 'send', q ? { id: sel.id, pendingId: sel.pending.id, text: text } : { id: sel.id, text: text });
         self.setState({ draft: '' });
       }

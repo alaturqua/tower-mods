@@ -59,6 +59,17 @@ test('an agent carries git, PR, feed and the minutes it has waited', () => {
   assert.match(a.feed[0][2], /^Failed: /)
 })
 
+test('only a session whose beacon reads the inbox can be steered, and unread messages count as queued', () => {
+  const now = NOW
+  const old = toAgent({ row: row(), status: { state: 'idle' }, git: null, pr: null, inbox: 1, now })
+  assert.equal(old.canSteer, false)
+  const fresh = toAgent({ row: row(), status: { state: 'idle', canReceive: true, inboxSeen: 2 }, git: null, pr: null, inbox: 3, now })
+  assert.equal(fresh.canSteer, true)
+  assert.equal(fresh.queued, 1)
+  const caughtUp = toAgent({ row: row(), status: { state: 'idle', canReceive: true, inboxSeen: 3 }, git: null, pr: null, inbox: 3, now })
+  assert.equal(caughtUp.queued, 0)
+})
+
 test('lanes merge equal neighbours and clip to the last hour', () => {
   const samples = [[NOW - 90 * 60000, 'working'], [NOW - 30 * 60000, 'working'], [NOW - 15 * 60000, 'needs']]
   assert.deepEqual(laneOf(samples, NOW), [[0, 45, 'working'], [45, 60, 'needs']])

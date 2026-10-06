@@ -6,9 +6,10 @@ import { currentRun } from './strip'
 
 type $ = EngineInterface
 type State = 'idle' | 'working' | 'needs-input' | 'done'
+// `at`, when the cockpit sent it; a message through the tower pane has none.
 type TowerMessage =
-  | { v: 1; kind: 'prompt'; text: string }
-  | { v: 1; kind: 'answer'; pendingId: string; allow?: boolean; text?: string }
+  | { v: 1; kind: 'prompt'; text: string; at?: string }
+  | { v: 1; kind: 'answer'; pendingId: string; allow?: boolean; text?: string; at?: string }
 // One line of the cockpit's live activity: who did what, newest last.
 type Activity = { t: string; kind: 'you' | 'tool' | 'say' | 'wait' | 'sent' | 'fail'; text: string }
 
@@ -55,6 +56,13 @@ let lastMessage: string | null = null
 // The same call failing again and again: its key, and how many times in a row.
 let failing = { key: '', count: 0, text: '' }
 let inboxBusy = false
+// Inbox lines this session has taken, for the cockpit to tell "queued" from "picked up".
+let inboxSeen = 0
+let inboxOn = false
+// A message sent before this session could read it (it was not running yet, or ran an
+// older Tower) is stale by the time it arrives; the grace covers a prompt sent at launch.
+let startedAt = 0
+const STALE_GRACE_MS = 30000
 
 async function getLabel($: $) {
   if (label) return label
@@ -102,6 +110,9 @@ async function report($: $, state?: State, message?: string | null) {
       message: lastMessage,
       pending: waiting ? { ...waiting, key: undefined } : null,
       remoteAnswers: isRemote,
+      // The cockpit may send here only when this session reads its inbox.
+      canReceive: inboxOn,
+      inboxSeen,
       health: failing.count >= LOOP_AFTER ? `Looping: ${failing.text} failed ${failing.count}× in a row` : null,
       lastPrompt,
       lastAnswer,
@@ -271,11 +282,14 @@ async function checkInbox($: $) {
     const lines = String(await $.fs.read(path)).split('\n').filter(line => line.trim())
     const seenKey = `inbox:${id}`
     const seen = Number((await $.store.get(seenKey)) ?? 0)
+    inboxSeen = Math.min(seen, lines.length)
     if (lines.length <= seen) return
     await $.store.set(seenKey, lines.length)
+    inboxSeen = lines.length
     for (const line of lines.slice(seen)) {
       const msg = parseMessage(line)
-      if (msg) await obey($, msg)
+      const at = msg?.at ? Date.parse(msg.at) : NaN
+      if (msg && !(at < startedAt - STALE_GRACE_MS)) await obey($, msg)
     }
   } catch (err) {
     $.ui.log(`beacon: could not read the cockpit's inbox: ${String(err)}`)
@@ -297,9 +311,11 @@ export const registerBeacon: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     isRemote = remoteAnswers === 'always' || (remoteAnswers === 'launched'
       && await $.fs.exists(`${await towerDir($)}/launched/${await $.session.id()}.json`).catch(() => false))
+    startedAt = await $.clock.now()
+    inboxOn = inboxMs > 0
     void report($, 'idle')
     void publishCommands($)
-    if (inboxMs > 0) $.clock.every(inboxMs || INBOX_MS, () => { void checkInbox($) })
+    if (inboxOn) $.clock.every(inboxMs || INBOX_MS, () => { void checkInbox($) })
     return next(e)
   })
 

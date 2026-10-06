@@ -52,6 +52,15 @@ async function readJson(path) {
 export const statusOf = id => readJson(join(TOWER, 'sessions', `${id}.json`))
 export const commandsOf = id => readJson(join(TOWER, 'commands', `${id}.json`))
 
+// Lines in a session's inbox: what the cockpit has sent it so far.
+export async function inboxCount(id) {
+  try {
+    return (await readFile(join(TOWER, 'inbox', `${id}.jsonl`), 'utf8')).split('\n').filter(line => line.trim()).length
+  } catch {
+    return 0
+  }
+}
+
 // Small TTL caches, keyed by folder: git and gh are the slow part of a refresh.
 function cached(ms, load) {
   const memo = new Map()
