@@ -1,0 +1,34 @@
+{
+  "name": "tower",
+  "owner": { "name": "Isa Inalcik", "email": "isa.inalcik@gmail.com" },
+  "metadata": {
+    "description": "Mods for running many Claude Code sessions across repos from one place.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "beacon",
+      "source": "./plugins/beacon",
+      "description": "Desktop notifications when a session needs you (permission prompt, question, long turn done), plus a status file per session.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "keywords": ["notifications", "multi-repo", "mods", "windows"]
+    },
+    {
+      "name": "tower",
+      "source": "./plugins/tower",
+      "description": "A control-tower pane: every running session across your repos, who needs you, and buttons to send prompts, answer, jump to or launch sessions.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "keywords": ["multi-repo", "sessions", "dashboard", "mods"]
+    },
+    {
+      "name": "strip",
+      "source": "./plugins/strip",
+      "description": "A status line with folder, git branch, model, effort, permission mode, context fill and session cost.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "keywords": ["status line", "git", "model", "effort", "mods"]
+    }
+  ]
+}

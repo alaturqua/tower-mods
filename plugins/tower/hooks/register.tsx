@@ -1,0 +1,318 @@
+import { atom, read, update } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
+
+import type { TowerSession } from '../types'
+import { COLOR, MARK, ago, columns, envelope, merge, tail } from './model'
+import type { AgentRow, StatusFile, TowerMessage } from './model'
+
+type $ = EngineInterface
+
+const PANE = 'tower'
+const USAGE = 'Usage: /tower · /tower list · /tower send <session> <prompt> · /tower launch <repo path> <task> · /tower add <repo path>'
+const JUMP_PS = `$ok = (New-Object -ComObject WScript.Shell).AppActivate($env:TOWER_TITLE); if (-not $ok) { exit 1 }`
+// A session the tower starts is its own, not a child of the tower's.
+const CHILD_ENV = { CLAUDECODE: '', CLAUDE_CODE_SESSION_ID: '', CLAUDE_CODE_CHILD_SESSION: '', CLAUDE_PID: '' }
+
+const sessions = atom({ plugin: 'tower', key: 'sessions' } as const, [] as TowerSession[])
+const selected = atom({ plugin: 'tower', key: 'selected' } as const, null as string | null)
+const view = atom({ plugin: 'tower', key: 'view' } as const, 'list' as 'list' | 'launch')
+const launchRepo = atom({ plugin: 'tower', key: 'launchRepo' } as const, null as string | null)
+const failure = atom({ plugin: 'tower', key: 'error' } as const, null as string | null)
+
+let pollMs = 3000
+let polling: Promise<TowerSession[]> | undefined
+let lastStatus: string | undefined
+
+function folder(path: string) {
+  return path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || path
+}
+
+async function towerDir($: $) {
+  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? '.'
+  return `${home}/.claude/tower`
+}
+
+// The running binary itself: the npm shim is a .cmd no argv call can start.
+async function claudeExe($: $) {
+  return (await $.env.get('CLAUDE_CODE_EXECPATH')) || 'claude'
+}
+
+async function readStatus($: $, dir: string, id: string): Promise<StatusFile | undefined> {
+  try {
+    return JSON.parse(String(await $.fs.read(`${dir}/sessions/${id}.json`)))
+  } catch {
+    return undefined
+  }
+}
+
+async function pollOnce($: $) {
+  try {
+    const out = await $.process.run([await claudeExe($), 'agents', '--json'], { timeoutMs: 15000 })
+    if (out.exitCode !== 0) throw new Error(out.stderr.trim() || `claude agents exited ${out.exitCode}`)
+    const agents = JSON.parse(out.stdout) as AgentRow[]
+    const dir = await towerDir($)
+    const statuses: Record<string, StatusFile> = {}
+    await Promise.all(agents.map(async a => {
+      const file = await readStatus($, dir, a.sessionId)
+      if (file) statuses[a.sessionId] = file
+    }))
+    const list = merge(agents, statuses, await $.session.id())
+    await update($, sessions, () => list)
+    await update($, failure, () => null)
+    const waiting = list.filter(s => s.state === 'needs-input').length
+    const status = waiting ? `tower: ${waiting} need${waiting === 1 ? 's' : ''} you` : undefined
+    if (status !== lastStatus) $.ui.status((lastStatus = status))
+    return list
+  } catch (err) {
+    await update($, failure, () => String(err instanceof Error ? err.message : err))
+    return read($, sessions)
+  }
+}
+
+// One poll at a time; a tick that finds one running shares its answer.
+function poll($: $) {
+  polling ??= pollOnce($).finally(() => { polling = undefined })
+  return polling
+}
+
+// A poll nobody waits for; one that outlives its module (a reload) fails quietly.
+function refresh($: $) {
+  poll($).catch(() => {})
+}
+
+function find(list: readonly TowerSession[], who: string) {
+  const w = who.toLowerCase()
+  const exact = list.find(s => s.name.toLowerCase() === w || s.id === who)
+  if (exact) return exact
+  const byLabel = list.filter(s => s.label.toLowerCase() === w)
+  if (byLabel.length) return byLabel[0]
+  return list.find(s => s.id.startsWith(who) || s.name.toLowerCase().startsWith(w))
+}
+
+async function send($: $, s: TowerSession, msg: TowerMessage) {
+  const res = await $.session.send({ to: { sessionId: s.id }, text: envelope(s.hasBeacon, msg) })
+  refresh($)
+  return res.isDelivered ? `Sent to ${s.label}.` : `Not delivered to ${s.label}: ${res.reason}`
+}
+
+// Typed text answers a pending question when the tower can; otherwise it is a new prompt.
+async function sendText($: $, s: TowerSession, text: string) {
+  if (s.pending?.kind === 'question' && s.remoteAnswers) return send($, s, { kind: 'answer', pendingId: s.pending.id, text })
+  return send($, s, { kind: 'prompt', text })
+}
+
+async function jump($: $, s: TowerSession) {
+  if (s.kind === 'background') {
+    const ran = await $.process.run(['wt.exe', '-d', s.cwd, await claudeExe($), 'attach', s.id]).catch(() => undefined)
+    return ran?.exitCode === 0 ? `Attached to ${s.label} in a new tab.` : `Couldn't open a terminal; run: claude attach ${s.id}`
+  }
+  if ((await $.env.get('OS')) === 'Windows_NT') {
+    const ran = await $.process.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', JUMP_PS], { env: { TOWER_TITLE: s.name }, timeoutMs: 10000 })
+      .catch(() => undefined)
+    if (ran?.exitCode === 0) return `Switched to ${s.label}.`
+  }
+  return `Couldn't find the window titled "${s.name}"; it runs in ${s.cwd}.`
+}
+
+async function knownRepos($: $) {
+  const saved = ((await $.store.get('repos')) as string[] | undefined) ?? []
+  const live = (await read($, sessions)).map(s => s.cwd)
+  const seen = new Map<string, string>()
+  for (const repo of [...saved, ...live]) seen.set(repo.toLowerCase().replace(/[\\/]+$/, ''), repo)
+  return [...seen.values()].sort((a, b) => folder(a).localeCompare(folder(b)))
+}
+
+async function remember($: $, repo: string) {
+  const saved = ((await $.store.get('repos')) as string[] | undefined) ?? []
+  if (!saved.some(r => r.toLowerCase() === repo.toLowerCase())) await $.store.set('repos', [...saved, repo])
+}
+
+async function launch($: $, repo: string, task: string) {
+  const id = crypto.randomUUID()
+  const name = `${folder(repo)}-${id.slice(0, 4)}`
+  // Written first: beacon in the new session reads it at session.start.
+  await $.fs.write(`${await towerDir($)}/launched/${id}.json`, JSON.stringify({ repo, task, launchedAt: new Date(await $.clock.now()).toISOString() }))
+  const ran = await $.process.run([await claudeExe($), '--bg', '--session-id', id, '--name', name, '--', task], { cwd: repo, env: CHILD_ENV, timeoutMs: 60000 })
+    .catch(err => ({ exitCode: -1, stdout: '', stderr: String(err) }))
+  if (ran.exitCode !== 0) return `Couldn't start a session in ${repo}: ${(ran.stderr || ran.stdout).trim().slice(0, 200)}`
+  await remember($, repo)
+  refresh($)
+  return `Started ${name} in ${repo}.`
+}
+
+function rowText(s: TowerSession, now: number, width: number) {
+  const what = s.pending ? `${s.pending.title}: ${s.pending.detail ?? ''}` : (s.message ?? '')
+  const tag = s.kind === 'background' ? ' (bg)' : ''
+  const head = `${MARK[s.state]} ${(s.label + tag).padEnd(18)} ${s.state.padEnd(11)} `
+  const tail = ` ${ago(s.updatedAt, now)}`
+  const room = Math.max(0, width - head.length - tail.length - 4)
+  return head + what.replace(/\s+/g, ' ').slice(0, room).padEnd(room) + tail
+}
+
+// `launch "D:\My Repo" the task` or `launch D:\repo the task`.
+function splitPath(rest: string): [string, string] {
+  const quoted = /^"([^"]+)"\s*(.*)$/s.exec(rest)
+  if (quoted) return [quoted[1] ?? '', quoted[2] ?? '']
+  const at = rest.search(/\s/)
+  return at < 0 ? [rest, ''] : [rest.slice(0, at), rest.slice(at).trim()]
+}
+
+async function runCommand($: $, args: string): Promise<string> {
+  const [verb = '', ...words] = args.trim().split(/\s+/)
+  const rest = args.trim().slice(verb.length).trim()
+  if (verb === 'list') {
+    const list = await poll($)
+    const now = await $.clock.now()
+    return list.length ? list.map(s => rowText(s, now, 100).trimEnd()).join('\n') : 'No other sessions are running.'
+  }
+  if (verb === 'send') {
+    const [who = '', ...text] = words
+    const list = await poll($)
+    const target = find(list, who)
+    if (!target || !text.length) return `No session "${who}". Running: ${list.map(s => s.label).join(', ') || 'none'}.`
+    return sendText($, target, rest.slice(who.length).trim())
+  }
+  if (verb === 'launch') {
+    const [repo, task] = splitPath(rest)
+    if (!repo || !task) return USAGE
+    return launch($, repo, task)
+  }
+  if (verb === 'add') {
+    if (!rest) return USAGE
+    await remember($, splitPath(rest)[0])
+    return `Remembered ${rest}.`
+  }
+  return USAGE
+}
+
+export const register: Register = (on, options) => {
+  pollMs = Number(options.pollSeconds ?? 3) * 1000
+
+  on('session.start', async ($, e, next) => {
+    await $.command.register({ name: 'tower', description: 'Watch and steer every running Claude Code session', argumentHint: '[list | send <session> <prompt> | launch <repo> <task> | add <repo>]' })
+    if (pollMs > 0) {
+      refresh($)
+      $.clock.every(pollMs, () => refresh($))
+    }
+    return next(e)
+  })
+
+  on('command.run', { command: 'tower' }, async ($, e) => {
+    if (e.args.trim()) return { text: await runCommand($, e.args) }
+    await update($, view, () => 'list')
+    refresh($)
+    await $.ui.open({ id: PANE, title: 'Tower', focus: true })
+    return { text: 'Tower opened.' }
+  })
+
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+    // Mobile has no text field or picker to steer with.
+    if (e.surface === 'mobile') {
+      const { Text } = $.ui.resolve(e)
+      return <Text dimColor>Open the tower in a terminal to steer sessions.</Text>
+    }
+    const { Box, Text, Button, Input, Select } = $.ui.resolve(e)
+    const width = (e.props as { bodyColumns?: number }).bodyColumns ?? e.viewport?.columns ?? 80
+    const toast = (text: string) => $.ui.toast(text)
+
+    if ((await read($, view)) === 'launch') {
+      const repos = await knownRepos($)
+      const repo = (await read($, launchRepo)) ?? repos[0] ?? null
+      return (
+        <Box flexDirection="column">
+          <Text bold>New session</Text>
+          {repos.length === 0
+            ? <Text dimColor>No repos known yet. Add one with /tower add &lt;path&gt;.</Text>
+            : <Select key="repo" label="Repo" value={repo ?? undefined} options={repos.map(r => ({ value: r, label: `${folder(r)}  ${r}` }))}
+                onSelect={value => void update($, launchRepo, () => value)} />}
+          {repo && <Input key="task" label={`Task for ${folder(repo)}`} placeholder="What should it do?" autoFocus submitLabel="launch"
+            onSubmit={task => {
+              if (!task.trim()) return
+              void launch($, repo, task.trim()).then(toast)
+              void update($, view, () => 'list')
+            }} />}
+          <Box gap={1}>
+            <Button key="back" hotkey="b" onPress={() => void update($, view, () => 'list')}>Back</Button>
+          </Box>
+        </Box>
+      )
+    }
+
+    const list = await read($, sessions)
+    const error = await read($, failure)
+    const now = await $.clock.now()
+    const chosen = await read($, selected)
+    const target = list.find(s => s.id === chosen) ?? list[0]
+    const waiting = list.filter(s => s.state === 'needs-input').length
+    const pending = target?.remoteAnswers ? target.pending : null
+    const cols = columns(width)
+    // The preview gets what the rows and controls leave of the pane's height.
+    const previewLines = Math.min(8, Math.max(2, (e.viewport?.rows ?? 30) - list.length - 14))
+    const rule = <Text dimColor>{'─'.repeat(Math.max(10, width - 2))}</Text>
+
+    const row = (s: TowerSession) => {
+      const isChosen = s.id === target?.id
+      const what = s.pending ? `${s.pending.title}: ${s.pending.detail ?? ''}` : (s.message ?? '')
+      const name = (s.label + (s.kind === 'background' ? ' (bg)' : '')).slice(0, cols.labelWidth).padEnd(cols.labelWidth)
+      return (
+        <Box key={`row-${s.id}`} gap={1}>
+          <Text color={COLOR[s.state]} dimColor={s.state === 'idle'} bold={isChosen}>{isChosen ? '▸' : ' '}{MARK[s.state]}</Text>
+          <Button key={`pick-${s.id}`} plain onPress={() => void update($, selected, () => s.id)}>{name}</Button>
+          {cols.showState && <Text color={COLOR[s.state]} dimColor={s.state === 'idle'}>{s.state.padEnd(11)}</Text>}
+          <Box flexGrow={1}>{cols.showMessage && <Text dimColor wrap="truncate-end">{what.replace(/\s+/g, ' ')}</Text>}</Box>
+          <Text dimColor>{ago(s.updatedAt, now)}</Text>
+        </Box>
+      )
+    }
+
+    return (
+      <Box flexDirection="column">
+        <Box gap={1}>
+          <Text bold>Tower</Text>
+          <Text dimColor>· {list.length} session{list.length === 1 ? '' : 's'}</Text>
+          {waiting > 0 && <Text color="warning" bold>· {waiting} need{waiting === 1 ? 's' : ''} you</Text>}
+        </Box>
+        {error && <Text color="warning">Stale: {error}</Text>}
+        {list.length === 0 && <Text dimColor>No other sessions are running. Press n to start one.</Text>}
+        {list.map(row)}
+        {target && (
+          <Box flexDirection="column">
+            {rule}
+            <Text dimColor wrap="truncate-middle">{target.name} · {target.cwd} · {target.kind}{target.hasBeacon ? '' : ' · no beacon'}</Text>
+            {target.pending && !pending && <Text color="warning">Waiting in its terminal: {target.pending.title} {target.pending.detail ?? ''}</Text>}
+            {pending?.kind === 'permission' && (
+              <Box flexDirection="column">
+                <Text color="warning">Needs approval: {pending.title} {pending.detail ?? ''}</Text>
+                <Box gap={1}>
+                  <Button key="allow" hotkey="a" variant="primary" onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, allow: true }).then(toast)}>Allow</Button>
+                  <Button key="deny" hotkey="d" onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, allow: false }).then(toast)}>Deny</Button>
+                </Box>
+              </Box>
+            )}
+            {pending?.kind === 'question' && (
+              <Box flexDirection="column">
+                <Text color="warning">Asks: {pending.title}</Text>
+                <Box gap={1} flexWrap="wrap">
+                  {(pending.options ?? []).slice(0, 4).map((label, i) => (
+                    <Button key={`opt-${i}`} hotkey={String(i + 1)} onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, text: label }).then(toast)}>{label}</Button>
+                  ))}
+                </Box>
+              </Box>
+            )}
+            {!target.pending && target.message && target.state !== 'done' && <Text>{target.message}</Text>}
+            {target.lastPrompt && <Text dimColor wrap="truncate-end">You › {target.lastPrompt.replace(/\s+/g, ' ')}</Text>}
+            {target.lastAnswer && <Text>{tail(target.lastAnswer, previewLines)}</Text>}
+            {!target.hasBeacon && <Text dimColor>No preview: this session runs without beacon.</Text>}
+            <Input key={`say-${target.id}`} placeholder={pending?.kind === 'question' ? `Answer ${target.label}…` : `Send to ${target.label}…`} submitLabel="send"
+              onSubmit={text => { if (text.trim()) void sendText($, target, text.trim()).then(toast) }} />
+          </Box>
+        )}
+        <Box gap={1} flexWrap="wrap">
+          {target && <Button key="jump" hotkey="j" onPress={() => void jump($, target).then(toast)}>Jump</Button>}
+          <Button key="new" hotkey="n" onPress={() => void update($, view, () => 'launch')}>New session</Button>
+          <Button key="refresh" hotkey="r" onPress={() => refresh($)}>Refresh</Button>
+        </Box>
+      </Box>
+    )
+  })
+}

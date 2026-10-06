@@ -1,0 +1,38 @@
+{
+  "name": "beacon",
+  "version": "0.1.0",
+  "description": "Desktop notifications when a session needs you (permission prompt, question, long turn done), plus a status file per session for the tower to read.",
+  "author": {
+    "name": "Isa Inalcik",
+    "email": "dynamit1985@gmail.com"
+  },
+  "repository": "https://github.com/alaturqua/tower-mods",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "remoteAnswers": {
+      "type": "string",
+      "title": "Answer from the tower",
+      "description": "Which sessions send their permission prompts and questions to the tower instead of the terminal: launched (sessions the tower started), always, or never.",
+      "options": ["launched", "always", "never"],
+      "default": "launched"
+    },
+    "notifyOnDone": {
+      "type": "boolean",
+      "title": "Notify when a turn finishes",
+      "description": "Send a notification when a main-loop turn ends after running at least minTurnSeconds.",
+      "default": true
+    },
+    "minTurnSeconds": {
+      "type": "number",
+      "title": "Minimum turn length (seconds)",
+      "description": "Shorter turns finish without a notification.",
+      "default": 30
+    },
+    "notifyOnIdle": {
+      "type": "boolean",
+      "title": "Notify on idle reminders",
+      "description": "Also notify when Claude Code reminds you the session is waiting for input.",
+      "default": false
+    }
+  }
+}

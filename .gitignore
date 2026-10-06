@@ -1,0 +1,4 @@
+# Laid by the Claude Code engine when it loads a mod from disk
+plugins/*/.claude-plugin/types/
+plugins/*/tsconfig.json
+node_modules/
