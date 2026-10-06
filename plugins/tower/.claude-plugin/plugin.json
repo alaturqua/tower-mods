@@ -40,6 +40,12 @@
       "options": ["launched", "always", "never"],
       "default": "launched"
     },
+    "inboxSeconds": {
+      "type": "number",
+      "title": "Cockpit inbox check (seconds)",
+      "description": "How often this session checks for prompts and answers sent from the cockpit. 0 turns it off.",
+      "default": 1
+    },
     "pollSeconds": {
       "type": "number",
       "title": "Tower refresh (seconds)",

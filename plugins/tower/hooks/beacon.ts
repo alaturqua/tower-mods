@@ -2,18 +2,24 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { BeaconPending } from '../types'
+import { currentRun } from './strip'
 
 type $ = EngineInterface
 type State = 'idle' | 'working' | 'needs-input' | 'done'
 type TowerMessage =
   | { v: 1; kind: 'prompt'; text: string }
   | { v: 1; kind: 'answer'; pendingId: string; allow?: boolean; text?: string }
+// One line of the cockpit's live activity: who did what, newest last.
+type Activity = { t: string; kind: 'you' | 'tool' | 'say' | 'wait' | 'sent' | 'fail'; text: string }
 
 // Two alerts for the same moment (AskUserQuestion's tool call and the Notification
 // hook it raises) collapse into the first.
 const DEDUPE_MS = 5000
 const QUIET_TYPES = new Set(['idle_prompt', 'auth_success'])
 const TOWER_MARK = '[tower] '
+const ACTIVITY_MAX = 30
+const LOOP_AFTER = 3
+const INBOX_MS = 1000
 
 const pending = atom({ plugin: 'tower', key: 'pending' } as const, null as BeaconPending | null)
 const approvals = atom({ plugin: 'tower', key: 'approvals' } as const, [] as string[])
@@ -43,6 +49,12 @@ let lastAlertAt = 0
 let lastPrompt: string | null = null
 let lastAnswer: string | null = null
 const PREVIEW_CHARS = 1500
+let activity: Activity[] = []
+let lastState: State = 'idle'
+let lastMessage: string | null = null
+// The same call failing again and again: its key, and how many times in a row.
+let failing = { key: '', count: 0, text: '' }
+let inboxBusy = false
 
 async function getLabel($: $) {
   if (label) return label
@@ -61,23 +73,39 @@ async function statusPath($: $) {
   return `${await towerDir($)}/sessions/${await $.session.id()}.json`
 }
 
-// The status file the tower pane (or anything else) can read for every session.
-async function report($: $, state: State, message?: string) {
+async function note($: $, kind: Activity['kind'], text: string) {
+  const t = new Date(await $.clock.now()).toISOString()
+  activity = [...activity, { t, kind, text: text.replace(/\s+/g, ' ').slice(0, 200) }].slice(-ACTIVITY_MAX)
+}
+
+// The status file the tower pane and the cockpit read for every session. A call without
+// a state keeps the last one, so a tool call can refresh the activity without changing it.
+async function report($: $, state?: State, message?: string | null) {
+  if (state) lastState = state
+  if (message !== undefined) lastMessage = message
   try {
     const repo = await $.session.repo().catch(() => null)
+    const usage = await $.session.usage().catch(() => undefined)
     const waiting = await read($, pending)
+    const run = currentRun()
     await $.fs.write(await statusPath($), JSON.stringify({
       sessionId: await $.session.id(),
       label: await getLabel($),
       cwd: await $.session.cwd(),
       remote: repo?.remote ?? null,
       model: await $.session.model(),
-      state,
-      message: message ?? null,
+      mode: run.mode,
+      effort: run.effort,
+      contextPercent: usage?.context.percent ?? null,
+      costUsd: usage?.cost?.usd ?? null,
+      state: lastState,
+      message: lastMessage,
       pending: waiting ? { ...waiting, key: undefined } : null,
       remoteAnswers: isRemote,
+      health: failing.count >= LOOP_AFTER ? `Looping: ${failing.text} failed ${failing.count}× in a row` : null,
       lastPrompt,
       lastAnswer,
+      activity,
       updatedAt: new Date(await $.clock.now()).toISOString(),
     }, null, 2))
   } catch {
@@ -108,16 +136,44 @@ async function alert($: $, kind: string, body: string, state: State) {
   void desktopNotify($, title, body).catch(err => $.ui.log(`beacon: notification failed: ${String(err)}`))
 }
 
-// What the tower shows for a permission: the command or path, else the input itself.
+// What the tower shows for a call: the command or path, else the input itself.
 function describeInput(input: unknown) {
   const fields = (input ?? {}) as Record<string, unknown>
   const main = fields.command ?? fields.file_path ?? fields.path ?? fields.url ?? fields.pattern
   return (typeof main === 'string' ? main : JSON.stringify(input) ?? '').slice(0, 300)
 }
 
-async function waitFor($: $, item: Omit<BeaconPending, 'id'>, alertKind: string, alertBody: string) {
-  const id = `p-${await $.clock.now()}`
-  await update($, pending, () => ({ ...item, id }))
+// For an edit, the change as diff lines the cockpit can draw; nothing for other tools.
+function diffOf(tool: string, input: unknown): BeaconPending['diff'] {
+  const fields = (input ?? {}) as Record<string, unknown>
+  const edits = Array.isArray(fields.edits) ? fields.edits as Record<string, unknown>[] : [fields]
+  const lines: NonNullable<BeaconPending['diff']> = []
+  for (const edit of edits) {
+    const before = typeof edit.old_string === 'string' ? edit.old_string : undefined
+    const after = typeof edit.new_string === 'string' ? edit.new_string : (tool === 'Write' && typeof fields.content === 'string' ? fields.content : undefined)
+    if (after === undefined) continue
+    lines.push([`@@ ${typeof fields.file_path === 'string' ? fields.file_path.split(/[\\/]/).pop() : ''} @@`, 'hunk'])
+    for (const line of (before ?? '').split('\n').filter(Boolean)) lines.push([`- ${line}`, 'del'])
+    for (const line of after.split('\n').filter(Boolean)) lines.push([`+ ${line}`, 'add'])
+  }
+  return lines.length ? lines.slice(0, 24) : undefined
+}
+
+// The agent's own last words before it asked: the reason the cockpit shows on the card.
+async function reasonFor($: $) {
+  const rows = await $.session.messages().catch(() => [])
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const row = rows[i]
+    if (row?.role === 'assistant' && row.text?.trim()) return row.text.trim().split('\n').filter(Boolean).pop()?.slice(0, 200)
+  }
+  return undefined
+}
+
+async function waitFor($: $, item: Omit<BeaconPending, 'id' | 'since'>, alertKind: string, alertBody: string) {
+  const now = await $.clock.now()
+  const why = await reasonFor($)
+  await update($, pending, () => ({ ...item, id: `p-${now}`, since: new Date(now).toISOString(), ...(why ? { why } : {}) }))
+  await note($, 'wait', alertBody)
   // Written before the deny returns, so the tower sees the wait as soon as the model does.
   await report($, 'needs-input', alertBody)
   await alert($, alertKind, `${alertBody} (answer in the tower)`, 'needs-input')
@@ -127,7 +183,10 @@ async function waitFor($: $, item: Omit<BeaconPending, 'id'>, alertKind: string,
 function parseTower(text: string): TowerMessage | undefined {
   const at = text.indexOf(TOWER_MARK)
   if (at < 0) return undefined
-  const body = text.slice(text.indexOf('{', at), text.lastIndexOf('}') + 1)
+  return parseMessage(text.slice(text.indexOf('{', at), text.lastIndexOf('}') + 1))
+}
+
+function parseMessage(body: string): TowerMessage | undefined {
   try {
     const msg = JSON.parse(body)
     return msg?.v === 1 && (msg.kind === 'prompt' || msg.kind === 'answer') ? msg : undefined
@@ -154,14 +213,53 @@ async function answer($: $, msg: Extract<TowerMessage, { kind: 'answer' }>) {
   if (waiting.kind === 'permission') {
     if (msg.allow) {
       await update($, approvals, keys => [...keys, waiting.key ?? ''])
+      await note($, 'sent', `Approved: ${waiting.detail ?? waiting.title}`)
       submit($, `Approved in the tower: retry ${waiting.title} ${waiting.detail ?? ''}`.trim())
     } else {
+      await note($, 'sent', `Denied: ${waiting.detail ?? waiting.title}`)
       submit($, `Denied in the tower: do not run ${waiting.title} ${waiting.detail ?? ''}. Continue another way or ask.`)
     }
   } else {
+    await note($, 'sent', `Answered: ${msg.text ?? ''}`)
     submit($, `Answer to your question "${waiting.title}": ${msg.text ?? ''}`)
   }
   await report($, 'working')
+}
+
+// One instruction from the tower, by message or by inbox line.
+async function obey($: $, msg: TowerMessage) {
+  if (msg.kind === 'prompt') {
+    await note($, 'sent', msg.text)
+    submit($, msg.text)
+    await report($)
+  } else {
+    await answer($, msg)
+  }
+}
+
+// The cockpit appends instructions to inbox/<session>.jsonl; the lines already obeyed
+// are counted in the store, so a reload or a restart never obeys one twice.
+async function checkInbox($: $) {
+  if (inboxBusy) return
+  inboxBusy = true
+  try {
+    const id = await $.session.id()
+    const path = `${await towerDir($)}/inbox/${id}.jsonl`
+    if (!(await $.fs.exists(path).catch(() => false))) return
+    const lines = String(await $.fs.read(path)).split('\n').filter(line => line.trim())
+    const seenKey = `inbox:${id}`
+    const seen = Number((await $.store.get(seenKey)) ?? 0)
+    if (lines.length <= seen) return
+    await $.store.set(seenKey, lines.length)
+    for (const line of lines.slice(seen)) {
+      const msg = parseMessage(line)
+      if (msg) await obey($, msg)
+    }
+  } catch (err) {
+    $.ui.log(`beacon: could not read the cockpit's inbox: ${String(err)}`)
+  } finally {
+    inboxBusy = false
+  }
 }
 
 // The part in every session: status file, notifications, and the receiving end of the tower.
@@ -171,17 +269,22 @@ export const registerBeacon: Register = (on, options) => {
   notifyOnIdle = options.notifyOnIdle === true
   notifications = options.notifications !== false
   remoteAnswers = String(options.remoteAnswers ?? 'launched')
+  const inboxMs = Number(options.inboxSeconds ?? 1) * 1000
 
   // The plugin's one unmatched session.start; the pane's and the status line's match every cwd.
   on('session.start', async ($, e, next) => {
     isRemote = remoteAnswers === 'always' || (remoteAnswers === 'launched'
       && await $.fs.exists(`${await towerDir($)}/launched/${await $.session.id()}.json`).catch(() => false))
     void report($, 'idle')
+    if (inboxMs > 0) $.clock.every(inboxMs || INBOX_MS, () => { void checkInbox($) })
     return next(e)
   })
 
   on('prompt.submit', async ($, e, next) => {
-    if (!(e.origin.kind === 'plugin' && e.origin.name === 'tower')) lastPrompt = e.text.slice(0, 500)
+    if (!(e.origin.kind === 'plugin' && e.origin.name === 'tower')) {
+      lastPrompt = e.text.slice(0, 500)
+      await note($, 'you', e.text)
+    }
     return next(e)
   })
 
@@ -194,8 +297,7 @@ export const registerBeacon: Register = (on, options) => {
   on('session.receive', async ($, e, next) => {
     const msg = parseTower(e.text)
     if (!msg) return next(e)
-    if (msg.kind === 'prompt') submit($, msg.text)
-    else await answer($, msg)
+    await obey($, msg)
     return { consumed: 'a tower instruction' }
   })
 
@@ -209,7 +311,8 @@ export const registerBeacon: Register = (on, options) => {
       return { decision: 'allow', reason: 'Approved in the tower' }
     }
     const detail = describeInput(e.input)
-    await waitFor($, { kind: 'permission', title: e.tool, detail, key }, 'Permission', `${e.tool}: ${detail}`)
+    const diff = diffOf(e.tool, e.input)
+    await waitFor($, { kind: 'permission', title: e.tool, detail, key, ...(diff ? { diff } : {}) }, 'Permission', `${e.tool}: ${detail}`)
     return { decision: 'deny', reason: 'Waiting for approval in the tower. End your turn now; you will be told when to retry.' }
   }).catch(($, e, next) => next(e))
 
@@ -226,6 +329,25 @@ export const registerBeacon: Register = (on, options) => {
     return result
   }).catch(($, e, next) => next(e))
 
+  // Every main-loop tool call: one line of activity, and a count of the same call failing in a row.
+  on('tool.call', async ($, e, next) => {
+    const result = await next(e)
+    if (e.agentId || e.tool === 'AskUserQuestion') return result
+    // A tool.call carries the tool's arguments beside its envelope fields.
+    const { tool, tool_use_id: _id, agentId: _agent, ...args } = e as unknown as Record<string, unknown>
+    const text = `${String(tool)} ${describeInput(args)}`.trim()
+    const failed = 'isError' in result && result.isError === true
+    if (failed) {
+      const key = `${String(tool)}:${JSON.stringify(args)}`
+      failing = key === failing.key ? { key, count: failing.count + 1, text } : { key, count: 1, text }
+    } else {
+      failing = { key: '', count: 0, text: '' }
+    }
+    await note($, failed ? 'fail' : 'tool', text)
+    void report($)
+    return result
+  }).catch(($, e, next) => next(e))
+
   on('classic.Notification', async ($, e, next) => {
     if (!e.agent_id && (notifyOnIdle || !QUIET_TYPES.has(e.notification_type))) {
       const kind = e.notification_type === 'permission_prompt' ? 'Permission' : 'Needs you'
@@ -237,7 +359,10 @@ export const registerBeacon: Register = (on, options) => {
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
     if (e.agentId) return result
-    if (e.answer.trim()) lastAnswer = e.answer.trim().slice(-PREVIEW_CHARS)
+    if (e.answer.trim()) {
+      lastAnswer = e.answer.trim().slice(-PREVIEW_CHARS)
+      await note($, 'say', e.answer.trim().split('\n').filter(Boolean).pop() ?? '')
+    }
     const waiting = await read($, pending)
     await report($, waiting ? 'needs-input' : 'done', waiting ? waiting.title : e.answer.slice(0, 200))
     if (!waiting && notifyOnDone && !e.isAborted && e.durationMs >= minTurnMs) {

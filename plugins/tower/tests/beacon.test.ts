@@ -1,7 +1,10 @@
 import { expect, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-type Run = { argv: readonly string[]; env: Record<string, string> }
+// The test runtime has timers; the hooks module's typings leave them out.
+declare const setTimeout: (fn: () => void, ms: number) => unknown
+
+type Run ={ argv: readonly string[]; env: Record<string, string> }
 
 // The engine beneath the plugin: a Windows host in a repo called "dbt-platform".
 // `launched` makes the tower's marker file for this session exist.
@@ -12,7 +15,7 @@ function stubHost(on: On, os = 'Windows_NT', launched = false) {
   let ran: () => void = () => {}
   const firstRun = new Promise<void>(resolve => { ran = resolve })
 
-  on('fs.exists', (_$, e) => ({ value: launched && /[\\/]tower[\\/]launched[\\/]sess-1\.json$/.test(e.path) }))
+  on('fs.exists', (_$, e) => ({ value: (launched && /[\\/]tower[\\/]launched[\\/]sess-1\.json$/.test(e.path)) || e.path.replace(/\\/g, '/') in files }))
   on('prompt.submit', (_$, e) => { prompts.push(e.text); return { text: e.text } })
   const env: Record<string, string> = { OS: os, USERPROFILE: 'C:/Users/me' }
   on('env.get', (_$, e) => ({ value: env[e.name] }))
@@ -23,6 +26,20 @@ function stubHost(on: On, os = 'Windows_NT', launched = false) {
   on('clock.now', () => ({ value: Date.now() }))
   on('fs.write', (_$, e) => { writes.push({ path: e.path, text: e.text }); return { value: undefined } })
   on('ui.log', () => ({ value: undefined }))
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000, percent: 37 }, rateLimits: [], cost: { usd: 0.42 } } }) as never)
+  on('session.messages', () => ({ value: [{ role: 'assistant', text: 'All 12 models build.\nReady to push.', toolUses: [] }] }) as never)
+  const store: Record<string, unknown> = {}
+  on('store.get', (_$, e) => ({ value: store[e.key] }) as never)
+  on('store.set', (_$, e) => { store[e.key] = e.value; return { value: undefined } })
+  // The inbox timer ticks `ticks` times, then waits forever.
+  let ticks = 0
+  on('clock.every', () => (ticks-- > 0 ? { value: undefined } : new Promise(() => {})) as never)
+  const files: Record<string, string> = {}
+  on('fs.read', (_$, e) => {
+    const text = files[e.path.replace(/\\/g, '/')]
+    if (text === undefined) throw new Error('ENOENT')
+    return { value: text } as never
+  })
   on('process.run', (_$, e) => {
     runs.push({ argv: e.argv, env: e.init?.env ?? {} })
     ran()
@@ -32,8 +49,50 @@ function stubHost(on: On, os = 'Windows_NT', launched = false) {
     const mine = writes.filter(w => /sessions[\\/]sess-1\.json$/.test(w.path))
     return JSON.parse(mine[mine.length - 1]?.text ?? '{}')
   }
-  return { runs, writes, prompts, firstRun, lastStatus }
+  const tick = (n: number) => { ticks = n }
+  return { runs, writes, prompts, firstRun, lastStatus, files, store, tick }
 }
+
+const INBOX = 'C:/Users/me/.claude/tower/inbox/sess-1.jsonl'
+
+test('a prompt the cockpit appends to the inbox is submitted once', async ($, on) => {
+  const host = stubHost(on)
+  on('session.start', () => ({ cwd: 'D:/Projects/dbt-platform' }))
+  host.files[INBOX] = JSON.stringify({ v: 1, kind: 'prompt', text: 'run the tests' }) + '\n'
+  host.tick(2)
+  await $.session.start({ source: 'startup', cwd: 'D:/Projects/dbt-platform' } as never)
+  await new Promise(resolve => setTimeout(() => resolve(undefined), 50))
+
+  expect(host.prompts).toEqual(['run the tests'])
+  expect(host.store['inbox:sess-1']).toBe(1)
+  expect(host.lastStatus().activity.at(-1)).toMatchObject({ kind: 'sent', text: 'run the tests' })
+})
+
+test('the status file carries usage, activity, and a loop of the same failing call', async ($, on) => {
+  const host = stubHost(on)
+  on('tool.call', () => ({ isError: true, result: 'exit 1', text: 'exit 1' }) as never)
+
+  for (let i = 0; i < 3; i++) await $.tool.call({ tool: 'Bash', command: 'npm test' } as never)
+  await new Promise(resolve => setTimeout(() => resolve(undefined), 20))
+
+  const status = host.lastStatus()
+  expect(status).toMatchObject({ contextPercent: 37, costUsd: 0.42 })
+  expect(status.activity.at(-1)).toMatchObject({ kind: 'fail', text: 'Bash npm test' })
+  expect(status.health).toContain('failed 3× in a row')
+})
+
+test('a held edit carries its diff and the agent\'s reason', { options: { remoteAnswers: 'always' } }, async ($, on) => {
+  const host = stubHost(on)
+  on('session.start', () => ({ cwd: 'D:/Projects/dbt-platform' }))
+  on('tool.check', () => ({ decision: 'ask' as const }))
+  await $.session.start({ source: 'startup', cwd: 'D:/Projects/dbt-platform' } as never)
+
+  await $.tool.check({ tool: 'Edit', input: { file_path: 'src/auth.ts', old_string: 'if (!ok) deny()', new_string: 'if (!(await check())) deny()' }, tool_use_id: 'tu-1' })
+
+  const pending = host.lastStatus().pending
+  expect(pending.why).toBe('Ready to push.')
+  expect(pending.diff).toEqual([['@@ auth.ts @@', 'hunk'], ['- if (!ok) deny()', 'del'], ['+ if (!(await check())) deny()', 'add']])
+})
 
 const tower = (msg: object) => `[tower] ${JSON.stringify({ v: 1, ...msg })}`
 

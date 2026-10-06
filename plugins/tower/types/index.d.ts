@@ -7,6 +7,10 @@ export type TowerPending = {
   title: string
   detail?: string
   options?: string[]
+  // The agent's last words before it asked, and for a file edit the change it wants.
+  why?: string
+  diff?: [string, 'hunk' | 'ctx' | 'del' | 'add'][]
+  since?: string
 }
 
 // What this session waits on that the tower can answer; `key` is the permission's

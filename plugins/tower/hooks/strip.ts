@@ -63,6 +63,11 @@ function background($: $) {
 }
 
 // The classic hook fields that say how the session runs right now.
+// How the session runs, as last reported: beacon copies it into the status file.
+export function currentRun(): { mode: string | null; effort: string | null } {
+  return { mode: known.mode ?? null, effort: known.effort ?? null }
+}
+
 function heard($: $, e: { permission_mode?: string; effort?: { level: string } }) {
   if (e.permission_mode) known = { ...known, mode: e.permission_mode }
   if (e.effort?.level) known = { ...known, effort: e.effort.level }
