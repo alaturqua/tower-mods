@@ -160,3 +160,7 @@ h2 { margin: 0 0 12px; font-size: clamp(28px, 3.4vw, 38px); line-height: 1.15; l
 .theme-toggle .sun { display: none; }
 :root[data-theme="light"] .theme-toggle .sun { display: block; }
 :root[data-theme="light"] .theme-toggle .moon { display: none; }
+
+.demo { margin: 0 0 32px; }
+.demo img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); }
+.demo figcaption { margin-top: 10px; color: var(--muted); font-size: 14px; }
