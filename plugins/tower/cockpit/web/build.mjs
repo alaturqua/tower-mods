@@ -1,13 +1,14 @@
 // Builds the cockpit page from the design mockup: the mockup's markup with its sample
 // controls wired to real actions, and logic.js in place of the mockup's sample logic.
-//   node build.mjs <mockup.dc.html>
-// The mockup stays the one source of the look; rerun this after changing it.
+//   node build.mjs
+// mockup.dc.html (the approved design) stays the one source of the look; rerun this after
+// changing it or logic.js. The result is the cockpit's page and the site's live demo.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const source = readFileSync(process.argv[2] ?? join(here, '..', '..', '..', '..', 'site', 'demo', 'cockpit.dc.html'), 'utf8')
+const source = readFileSync(join(here, 'mockup.dc.html'), 'utf8')
 let page = source.slice(0, source.indexOf('<script type="text/x-dc"'))
 
 function swap(from, to) {
@@ -157,4 +158,5 @@ const logic = readFileSync(join(here, 'logic.js'), 'utf8')
 page += `<script type="text/x-dc" data-dc-script>\n${logic}</script>\n</body>\n</html>\n`
 page = page.replace('<title>Tower Cockpit</title>', '<title>Tower cockpit</title>')
 writeFileSync(join(here, 'cockpit.dc.html'), page)
+writeFileSync(join(here, '..', '..', '..', '..', 'site', 'demo', 'cockpit.dc.html'), page)
 console.log('built cockpit.dc.html', page.length, 'bytes')

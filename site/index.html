@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tower: run every Claude Code session from one place</title>
-  <meta name="description" content="Claude Code mods for running many sessions across many repos: see every agent, answer what it waits on, and launch new ones from one control tower.">
+  <title>Tower: a cockpit for every Claude Code session</title>
+  <meta name="description" content="A Claude Code plugin: one cockpit for every agent across your repos. See who needs you, approve and answer, send prompts and slash commands, start workstreams in git worktrees, and watch changes, PRs and health.">
   <meta name="theme-color" content="#0E1116">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="canonical" href="https://alaturqua.github.io/tower-mods/">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Tower: run every Claude Code session from one place">
-  <meta property="og:description" content="See every agent across your repos, answer what it waits on, and launch new ones from one control tower.">
+  <meta property="og:title" content="Tower: a cockpit for every Claude Code session">
+  <meta property="og:description" content="See every agent across your repos, approve and answer, send prompts, start workstreams, and watch changes and PRs from one cockpit.">
   <meta property="og:url" content="https://alaturqua.github.io/tower-mods/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,9 +35,10 @@
       <span>Tower</span>
     </a>
     <nav class="rail-nav" aria-label="Sections">
-      <a href="#mods">Mods</a>
-      <a href="#answers">Remote answers</a>
+      <a href="#demo">Demo</a>
       <a href="#cockpit">Cockpit</a>
+      <a href="#answers">Remote answers</a>
+      <a href="#terminal">Terminal</a>
       <a href="#install">Install</a>
     </nav>
     <a class="rail-link" href="https://github.com/alaturqua/tower-mods">GitHub</a>
@@ -58,63 +59,45 @@
   </header>
 
   <main id="main">
-    <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <p class="eyebrow">Claude Code mods</p>
-        <h1 id="hero-title">Run every Claude Code session from one&nbsp;tower.</h1>
-        <p class="lede">Five repos, a dozen agents, one of them stuck on a permission prompt in a terminal you can't find. Tower puts every running session in one pane: who needs you, what each is doing, and a box to steer it. Answer, redirect, jump to it or launch a new one without leaving your seat.</p>
-        <div class="cta">
-          <a class="btn btn-primary" href="#install">Install the mods</a>
-          <a class="btn" href="https://github.com/alaturqua/tower-mods">View on GitHub</a>
-        </div>
+    <section class="intro" aria-labelledby="hero-title">
+      <p class="eyebrow">Claude Code plugin</p>
+      <h1 id="hero-title">One cockpit for every Claude&nbsp;Code&nbsp;agent.</h1>
+      <p class="lede">Five repos, a dozen agents, one of them stuck on a permission prompt in a terminal you can't find. Tower shows every session in one place: who needs you, what each one is doing and changing, and a box to steer it.</p>
+      <div class="install-line">
+        <code id="hero-install">claude plugin marketplace add alaturqua/tower-mods &amp;&amp; claude plugin install tower@tower</code>
+        <button type="button" class="copy-inline" data-copy="hero-install">Copy</button>
       </div>
-
-      <figure class="pane" aria-label="The tower pane in a terminal">
-        <div class="pane-bar"><span></span><span></span><span></span><b>/tower</b></div>
-        <div class="pane-body">
-          <p class="pane-head"><b>Tower</b> <i>· 4 sessions</i> <em class="warn">· 1 needs you</em></p>
-          <p class="row sel"><span class="warn">▸!</span> <b>dbt-platform</b>  <span class="warn">needs-input</span> <i>Bash: git push origin main</i> <i class="r">2m</i></p>
-          <p class="row"><span class="work"> ~</span> web           <span class="work">working    </span> <i>Running tests</i> <i class="r">10s</i></p>
-          <p class="row"><span class="ok"> ✓</span> infra         <span class="ok">done       </span> <i>Migrated 12 models.</i> <i class="r">5m</i></p>
-          <p class="row"><span class="dim"> ·</span> api (bg)      <span class="dim">idle       </span> <i></i> <i class="r">1h</i></p>
-          <p class="rule"></p>
-          <p class="warn">Needs approval: Bash git push origin main</p>
-          <p><span class="key">[ Allow ]</span> <span class="key2">[ Deny ]</span></p>
-          <p class="dim">You › migrate the staging models and push</p>
-          <p>Ran dbt build on 12 models; all passed.</p>
-          <p class="input">Send to dbt-platform…</p>
-        </div>
-        <div class="pane-status">tower-mods ⎇ main* · Opus 5.5 · high · auto · ctx 42% · $1.23</div>
-      </figure>
+      <p class="intro-after">Then type <code>/cockpit</code> in any session. <a href="#install">Requirements and setup</a></p>
     </section>
 
-    <section id="mods" class="band" aria-labelledby="mods-title">
-      <h2 id="mods-title">One plugin, three parts</h2>
-      <p class="sub">Install it in every session. Each session reports what it is doing through a small status file; whichever one you run <code>/tower</code> in becomes your control pane. Every part can be switched off in <code>/config</code>.</p>
-      <div class="cards">
-        <article class="card">
-          <p class="tag work">in the session you steer from</p>
-          <h3>/tower pane</h3>
-          <p><code>/tower</code> opens a pane listing every running session on this machine, across repos, sorted so whoever needs you is on top. Pick one to send it a prompt, allow or deny what it waits on, answer its question, or jump to its window. Launch a new background agent in any repo with a task.</p>
-        </article>
-        <article class="card">
-          <p class="tag warn">in every session</p>
-          <h3>notifications</h3>
-          <p>A desktop notification when a session needs you: a permission prompt, a question, a long turn finishing. Writes what each session is doing for the tower to read, and receives the tower's prompts and answers as if you had typed them there.</p>
-        </article>
-        <article class="card">
-          <p class="tag ok">at the bottom</p>
-          <h3>status line</h3>
-          <p>A status line with where you are and how you run: <code>2 need you · folder ⎇ branch* · model · effort · mode · ctx 42% · $1.23</code>, led by how many other sessions wait on you.</p>
-        </article>
+    <section id="demo" class="live" aria-label="Live demo">
+      <div class="live-bar">
+        <span><b>Try it</b> · this is the real cockpit with sample data · approve a request, switch views, start a workstream, fold the panels</span>
+        <a href="demo/" target="_blank" rel="noopener">Open full screen ↗</a>
       </div>
+      <div class="live-frame" id="live-frame">
+        <iframe id="live-iframe" src="demo/" title="Tower cockpit live demo with sample data" width="1440" height="900"></iframe>
+      </div>
+    </section>
+
+    <section id="cockpit" class="band" aria-labelledby="cockpit-title">
+      <h2 id="cockpit-title">What the cockpit does</h2>
+      <p class="sub">A local web page served from your own machine, over every Claude Code session on it. It reads what each session reports and acts through the session itself, so nothing leaves your computer.</p>
+      <ul class="features">
+        <li><b>Who needs you, first.</b> Permission requests and questions as cards, oldest first, with the agent's reason, a diff for edits and a badge on risky commands. Allow, deny or answer with a click or <kbd>A</kbd> / <kbd>D</kbd>.</li>
+        <li><b>Steer any session.</b> Send a prompt, or type <kbd>/</kbd> for the session's own slash commands, in a drop-up like Claude Code's.</li>
+        <li><b>Workstreams.</b> Start an agent in a fresh git worktree on its own branch, watch each one, rename or remove it.</li>
+        <li><b>Changes and PRs.</b> Lines changed per agent and file, the pull request with CI and reviews, and squash-merge when it's green.</li>
+        <li><b>Health.</b> Agents that look stuck, loop on the same failing command, or fill their context are flagged, and the timeline shows who worked and who waited on you.</li>
+        <li><b>The whole fleet.</b> Table, cards or timeline; one prompt to many agents; jump to a session's window or attach to a background one. System, light or dark, remembered.</li>
+      </ul>
     </section>
 
     <section id="answers" class="band" aria-labelledby="answers-title">
-      <h2 id="answers-title">Answer from the tower, not the terminal</h2>
-      <p class="sub">When a session the tower launched wants permission, the question comes to you in the tower, not to a terminal nobody is watching.</p>
+      <h2 id="answers-title">Answer from the cockpit, not the terminal</h2>
+      <p class="sub">When an agent the cockpit launched wants permission, the question comes to you, not to a terminal nobody is watching.</p>
 
-      <ol class="flow" aria-label="How a permission is answered from the tower">
+      <ol class="flow" aria-label="How a permission is answered from the cockpit">
         <li class="flow-step">
           <p class="flow-who"><span class="dot work"></span>Agent in <b>api</b></p>
           <div class="flow-shot"><code>Bash  git push origin main</code></div>
@@ -122,13 +105,13 @@
         </li>
         <li class="flow-step">
           <p class="flow-who"><span class="dot warn"></span>Held</p>
-          <div class="flow-shot flow-shot-warn">Waiting for approval in the tower</div>
-          <p class="flow-say">Nothing runs. The tower shows <b>1 needs you</b>.</p>
+          <div class="flow-shot flow-shot-warn">Waiting for approval in the cockpit</div>
+          <p class="flow-say">Nothing runs. You get a notification and a card.</p>
         </li>
         <li class="flow-step">
-          <p class="flow-who"><span class="dot you"></span>You, in the tower</p>
+          <p class="flow-who"><span class="dot you"></span>You, anywhere</p>
           <div class="flow-shot flow-buttons"><span class="fake-btn fake-primary">Allow</span><span class="fake-btn">Deny</span></div>
-          <p class="flow-say">One keypress, from wherever you are.</p>
+          <p class="flow-say">One click or keypress.</p>
         </li>
         <li class="flow-step">
           <p class="flow-who"><span class="dot ok"></span>Runs once</p>
@@ -139,12 +122,12 @@
 
       <div class="modes">
         <div class="mode">
-          <h3>Launched by the tower</h3>
-          <p>Permission prompts and questions come to the tower.</p>
+          <h3>Launched from the cockpit</h3>
+          <p>Permission prompts and questions come to the cockpit.</p>
         </div>
         <div class="mode">
           <h3>Started by hand</h3>
-          <p>Keeps its own dialog. The tower shows what it waits on, and <b>Jump</b> takes you there.</p>
+          <p>Keeps its own dialog. The cockpit shows what it waits on, and <b>Jump</b> brings its window forward.</p>
         </div>
         <div class="mode">
           <h3>Want every session?</h3>
@@ -153,42 +136,65 @@
       </div>
     </section>
 
-    <section id="cockpit" class="band" aria-labelledby="cockpit-title">
-      <p class="eyebrow">In design</p>
-      <h2 id="cockpit-title">Next: the cockpit</h2>
-      <p class="sub">A local web dashboard for when one pane is not enough: every repo and its workstreams on the left, the fleet in the middle, the selected agent's live activity on the right.</p>
-      <div class="live">
-        <div class="live-bar">
-          <span><b>Live demo</b> · sample data · click anything: Allow, the views, + New workstream, the « » panels</span>
-          <a href="demo/" target="_blank" rel="noopener">Open full screen ↗</a>
-        </div>
-        <div class="live-frame" id="live-frame">
-          <iframe id="live-iframe" src="demo/" title="Tower cockpit live demo with sample data" loading="lazy" width="1440" height="900"></iframe>
+    <section id="terminal" class="band" aria-labelledby="terminal-title">
+      <h2 id="terminal-title">Or stay in the terminal</h2>
+      <p class="sub">The same plugin works inside Claude Code too, so you never need the browser.</p>
+      <div class="term">
+        <figure class="pane" aria-label="The /tower pane in a terminal">
+          <div class="pane-bar"><span></span><span></span><span></span><b>/tower</b></div>
+          <div class="pane-body">
+            <p class="pane-head"><b>Tower</b> <i>· 4 sessions</i> <em class="warn">· 1 needs you</em></p>
+            <p class="row sel"><span class="warn">▸!</span> <b>dbt-platform</b>  <span class="warn">needs-input</span> <i>Bash: git push origin main</i> <i class="r">2m</i></p>
+            <p class="row"><span class="work"> ~</span> web           <span class="work">working    </span> <i>Running tests</i> <i class="r">10s</i></p>
+            <p class="row"><span class="ok"> ✓</span> infra         <span class="ok">done       </span> <i>Migrated 12 models.</i> <i class="r">5m</i></p>
+            <p class="row"><span class="dim"> ·</span> api (bg)      <span class="dim">idle       </span> <i></i> <i class="r">1h</i></p>
+            <p class="rule"></p>
+            <p class="warn">Needs approval: Bash git push origin main</p>
+            <p><span class="key">[ Allow ]</span> <span class="key2">[ Deny ]</span></p>
+            <p class="input">Send to dbt-platform…</p>
+          </div>
+          <div class="pane-status">1 needs you · tower-mods ⎇ main* · Opus 5.5 · high · auto · ctx 42% · $1.23</div>
+        </figure>
+        <div class="cards">
+          <article class="card">
+            <p class="tag work">type /tower</p>
+            <h3>The tower pane</h3>
+            <p>Every session in a pane beside your conversation: who needs you on top, allow, deny, answer, send a prompt, jump, or launch a background agent.</p>
+          </article>
+          <article class="card">
+            <p class="tag warn">in every session</p>
+            <h3>Notifications</h3>
+            <p>A desktop notification when a session needs you: a permission prompt, a question, a long turn finishing.</p>
+          </article>
+          <article class="card">
+            <p class="tag ok">at the bottom</p>
+            <h3>Status line</h3>
+            <p>How many sessions wait on you, then folder, branch, model, effort, mode, context and cost.</p>
+          </article>
         </div>
       </div>
-      <ul class="features">
-        <li><b>Workstreams.</b> Start a git worktree per line of work, with its own branch and agents, and watch each one.</li>
-        <li><b>Fast approvals.</b> The agent's reason, a diff preview and risk badges on every request; Allow, Always allow or Deny from the keyboard.</li>
-        <li><b>Changes and PRs.</b> Lines changed per agent, pull request, CI and review status, merge when it's green.</li>
-        <li><b>Health.</b> Stuck, looping and context-full agents flagged, how long each waited on you, cost caps that pause an agent.</li>
-        <li><b>Fleet control.</b> One prompt to many agents; pause, resume or stop a whole repo; a timeline of who worked and who waited.</li>
-      </ul>
     </section>
 
     <section id="install" class="band" aria-labelledby="install-title">
       <h2 id="install-title">Install</h2>
-      <p class="sub">One line: add the marketplace, install the plugin. Mods draw in a terminal (VS Code's integrated terminal works) and the desktop app's Code tab.</p>
+      <p class="sub">One line adds the marketplace and installs the plugin. Install it everywhere: every session then reports to the cockpit and can be steered from it.</p>
       <div class="code">
         <button type="button" class="copy" data-copy="install-cmds">Copy</button>
 <pre id="install-cmds"><code>claude plugin marketplace add alaturqua/tower-mods &amp;&amp; claude plugin install tower@tower</code></pre>
       </div>
-      <p class="note">Then run <code>/tower</code> in the session you want to steer from. Claude Code mods are early access; the API can change between releases.</p>
+      <ul class="setup">
+        <li><b>Open the cockpit:</b> <code>/cockpit</code> in any session starts it and opens your browser. It listens on this machine only, behind a one-time link.</li>
+        <li><b>Needs:</b> Node.js 18 or newer for the cockpit, and <code>gh</code> for pull requests. Sessions started before installing need a restart to report and receive.</li>
+        <li><b>Launching agents:</b> Claude Code must have been trusted in a repository once (open Claude Code there and accept the prompt) before the cockpit can start agents in it.</li>
+        <li><b>Early access:</b> Claude Code mods are new; the API can change between releases. See the <a href="https://github.com/alaturqua/tower-mods/blob/main/CHANGELOG.md">changelog</a>.</li>
+      </ul>
     </section>
   </main>
 
   <footer class="foot">
-    <span>Tower mods · Apache-2.0</span>
+    <span>Tower · Apache-2.0</span>
     <a href="https://github.com/alaturqua/tower-mods">Source on GitHub</a>
+    <a href="https://github.com/alaturqua/tower-mods/releases">Releases</a>
     <a href="https://github.com/alaturqua/tower-mods/issues">Report an issue</a>
   </footer>
 
@@ -247,7 +253,7 @@
       fit()
     })()
 
-    document.querySelectorAll('button.copy').forEach(function (btn) {
+    document.querySelectorAll('button.copy, button.copy-inline').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var text = document.getElementById(btn.dataset.copy).innerText
         navigator.clipboard.writeText(text).then(function () {

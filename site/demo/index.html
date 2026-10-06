@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tower cockpit: live demo</title>
-  <meta name="description" content="The Tower cockpit mockup, running live with sample data: approve requests, switch views, start workstreams, fold the panels.">
+  <meta name="description" content="The Tower cockpit, running in your browser on sample data: approve requests, send prompts and slash commands, switch views, start workstreams, fold the panels.">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
   <style>
     html, body { margin: 0; background: #0E1116; }
@@ -13,6 +13,8 @@
 </head>
 <body>
   <div id="app"></div>
+  <!-- The real cockpit page, with a stand-in for its server: sample data, nothing sent anywhere. -->
+  <script src="sample.js?v=dev"></script>
   <script src="dc-lite.js?v=dev"></script>
   <script>
     // Embedded on the site, the page above picks the theme and says so; opened on its

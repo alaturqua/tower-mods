@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Tower cockpit</title>
+<title>Tower Cockpit</title>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -34,10 +34,7 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
       <span style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--bad-tint); color: var(--bad); font-size: 13px; font-weight: 600"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--bad)"></span>{{fleet.alerts}} alerts</span>
       <span style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--work-tint); color: var(--work); font-size: 13px"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--work)"></span>{{fleet.working}} working</span>
       <span style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--ok-tint); color: var(--ok); font-size: 13px"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--ok)"></span>{{fleet.done}} done</span>
-      <span style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--chip); color: var(--muted); font-size: 13px; font-family: 'IBM Plex Mono', monospace">{{fleet.cost}} across sessions</span>
-      <sc-if value="{{conn.down}}" hint-placeholder-val="{{ false }}">
-        <span role="status" style="display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 999px; background: var(--bad-tint); color: var(--bad); font-size: 13px; font-weight: 600">{{conn.label}}</span>
-      </sc-if>
+      <span style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--chip); color: var(--muted); font-size: 13px; font-family: 'IBM Plex Mono', monospace">$6.81 today · cap $20</span>
     </div>
     <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
       <div role="group" aria-label="Theme" style="display: flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--chip); border: 1px solid var(--line)">
@@ -45,7 +42,8 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
           <button type="button" aria-pressed="{{opt.pressed}}" onClick="{{opt.pick}}" style="{{opt.style}}">{{opt.label}}</button>
         </sc-for>
       </div>
-      <button type="button" onClick="{{newAgent}}" style="min-height: 40px; padding: 0 16px; border-radius: 8px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">+ New agent</button>
+      <button type="button" style="min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">Search <kbd>/</kbd></button>
+      <button type="button" style="min-height: 40px; padding: 0 16px; border-radius: 8px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">+ New agent</button>
     </div>
   </header>
 
@@ -83,19 +81,10 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
               <span style="flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{repo.name}}</span>
               <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted)">{{repo.summary}}</span>
             </button>
-            <sc-if value="{{repo.showWs}}" hint-placeholder-val="{{ true }}"><button type="button" onClick="{{repo.toggleMenu}}" aria-haspopup="menu" aria-expanded="{{repo.menuExpanded}}" aria-label="{{repo.menuLabel}}" style="flex: none; width: 28px; height: 34px; border: none; border-radius: 6px; background: transparent; color: var(--muted); font-size: 16px; line-height: 1">⋯</button></sc-if>
           </div>
-          <sc-if value="{{repo.menuOpen}}" hint-placeholder-val="{{ false }}">
-            <div role="menu" style="margin: 2px 0 6px 30px; display: flex; flex-direction: column; padding: 4px; border-radius: 8px; border: 1px solid var(--edge); background: var(--panel); box-shadow: 0 8px 20px rgba(0,0,0,0.12)">
-              <sc-for list="{{repo.menu}}" as="m" hint-placeholder-count="2">
-                <button type="button" role="menuitem" onClick="{{m.run}}" style="{{m.style}}">{{m.label}}</button>
-              </sc-for>
-            </div>
-          </sc-if>
           <sc-if value="{{repo.showList}}" hint-placeholder-val="{{ true }}">
             <div style="display: flex; flex-direction: column; gap: 2px; margin-left: 14px; padding-left: 8px; border-left: 1px solid var(--line)">
               <sc-for list="{{repo.ws}}" as="w" hint-placeholder-count="2">
-                <div style="display: flex; align-items: center; gap: 2px">
                 <button type="button" onClick="{{w.pick}}" style="{{w.style}}">
                   <span style="{{w.dot}}"></span>
                   <span style="flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column">
@@ -104,22 +93,13 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
                   </span>
                   <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted)">{{w.count}}</span>
                 </button>
-                <button type="button" onClick="{{w.toggleMenu}}" aria-haspopup="menu" aria-expanded="{{w.menuExpanded}}" aria-label="{{w.menuLabel}}" style="flex: none; width: 28px; height: 34px; border: none; border-radius: 6px; background: transparent; color: var(--muted); font-size: 16px; line-height: 1">⋯</button>
-                </div>
-                <sc-if value="{{w.menuOpen}}" hint-placeholder-val="{{ false }}">
-            <div role="menu" style="margin: 2px 0 6px 30px; display: flex; flex-direction: column; padding: 4px; border-radius: 8px; border: 1px solid var(--edge); background: var(--panel); box-shadow: 0 8px 20px rgba(0,0,0,0.12)">
-              <sc-for list="{{w.menu}}" as="m" hint-placeholder-count="2">
-                <button type="button" role="menuitem" onClick="{{m.run}}" style="{{m.style}}">{{m.label}}</button>
-              </sc-for>
-            </div>
-          </sc-if>
               </sc-for>
               <button type="button" onClick="{{repo.newWs}}" style="min-height: 34px; padding: 0 8px; border-radius: 6px; border: none; background: transparent; color: var(--work); font-size: 13px; text-align: left">+ New workstream</button>
             </div>
           </sc-if>
         </div>
       </sc-for>
-      <button type="button" onClick="{{addRepo}}" style="margin-top: 8px; min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px dashed var(--edge); background: transparent; color: var(--muted); text-align: left">+ Add repository</button>
+      <button type="button" style="margin-top: 8px; min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px dashed var(--edge); background: transparent; color: var(--muted); text-align: left">+ Add repository</button>
       <div style="margin-top: auto; padding: 14px 10px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.7">
         <div><kbd>J</kbd> <kbd>K</kbd> next blocked agent</div>
         <div><kbd>A</kbd> allow · <kbd>D</kbd> deny · <kbd>1</kbd>–<kbd>4</kbd> answer</div>
@@ -133,9 +113,8 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
       <sc-if value="{{form.open}}" hint-placeholder-val="{{ false }}">
         <form onSubmit="{{form.create}}" aria-label="New workstream" style="display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; border-radius: 14px; background: var(--form-bg); border: 1px solid var(--info-edge)">
           <div style="display: flex; flex-direction: column; gap: 4px">
-            <h2 style="margin: 0; font-size: 17px; font-weight: 600">{{form.title}}</h2>
-            <span style="color: var(--muted); font-size: 13px">{{form.blurb}}</span>
-            <label style="display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 13px"><input type="checkbox" checked="{{form.worktree}}" onChange="{{form.toggleWorktree}}" style="width: 18px; height: 18px; accent-color: var(--work)"> Create a git worktree on its own branch</label>
+            <h2 style="margin: 0; font-size: 17px; font-weight: 600">New workstream in {{form.repo}}</h2>
+            <span style="color: var(--muted); font-size: 13px">Creates a git worktree on its own branch, so agents here never collide with other work in this repo, then starts an agent in it.</span>
           </div>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px">
             <div style="display: flex; flex-direction: column; gap: 6px">
@@ -145,19 +124,26 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
             <div style="display: flex; flex-direction: column; gap: 6px">
               <label for="ws-base" style="font-size: 12px; color: var(--muted)">Start from</label>
               <select id="ws-base" value="{{form.base}}" onChange="{{form.pickBase}}" style="min-height: 42px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--edge); background: var(--bg); color: var(--text); font: inherit">
-                <sc-for list="{{form.bases}}" as="o" hint-placeholder-count="2"><option value="{{o.value}}">{{o.label}}</option></sc-for>
+                <option value="main">main</option>
+                <option value="develop">develop</option>
+                <option value="current">current branch</option>
               </select>
             </div>
             <div style="display: flex; flex-direction: column; gap: 6px">
               <label for="ws-model" style="font-size: 12px; color: var(--muted)">Model</label>
               <select id="ws-model" value="{{form.model}}" onChange="{{form.pickModel}}" style="min-height: 42px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--edge); background: var(--bg); color: var(--text); font: inherit">
-                <sc-for list="{{form.models}}" as="o" hint-placeholder-count="3"><option value="{{o.value}}">{{o.label}}</option></sc-for>
+                <option value="Opus 5.5">Opus 5.5</option>
+                <option value="Sonnet 5.5">Sonnet 5.5</option>
+                <option value="Haiku 4.5">Haiku 4.5</option>
               </select>
             </div>
             <div style="display: flex; flex-direction: column; gap: 6px">
               <label for="ws-mode" style="font-size: 12px; color: var(--muted)">Permission mode</label>
               <select id="ws-mode" value="{{form.mode}}" onChange="{{form.pickMode}}" style="min-height: 42px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--edge); background: var(--bg); color: var(--text); font: inherit">
-                <sc-for list="{{form.modes}}" as="o" hint-placeholder-count="4"><option value="{{o.value}}">{{o.label}}</option></sc-for>
+                <option value="auto">auto</option>
+                <option value="accept edits">accept edits</option>
+                <option value="plan">plan first</option>
+                <option value="default">ask for everything</option>
               </select>
             </div>
           </div>
@@ -167,7 +153,7 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
           </div>
           <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 8px; padding: 8px 10px; overflow-wrap: anywhere; white-space: pre-wrap">{{form.preview}}</div>
           <div style="display: flex; flex-wrap: wrap; gap: 8px">
-            <button type="button" onClick="{{form.create}}" style="min-height: 42px; padding: 0 16px; border-radius: 8px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">{{form.submitLabel}}</button>
+            <button type="button" onClick="{{form.create}}" style="min-height: 42px; padding: 0 16px; border-radius: 8px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">Create workstream</button>
             <button type="button" onClick="{{form.cancel}}" style="min-height: 42px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--edge); background: transparent; color: var(--text)">Cancel</button>
           </div>
         </form>
@@ -185,10 +171,10 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
             <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px"><span style="color: var(--ok)">+{{wsHead.add}}</span> <span style="color: var(--bad)">−{{wsHead.del}}</span> <span style="color: var(--muted)">· {{wsHead.files}} files · {{wsHead.ahead}} ahead, {{wsHead.behind}} behind {{wsHead.base}} · {{wsHead.agents}} · </span><span style="{{wsHead.prStyle}}">{{wsHead.pr}}</span></span>
           </div>
           <div style="display: flex; flex-wrap: wrap; gap: 8px">
-            <button type="button" onClick="{{wsHead.addAgent}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">+ Agent here</button>
-            <button type="button" onClick="{{wsHead.openEditor}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">Open in editor</button>
-            <button type="button" onClick="{{wsHead.prDo}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">{{wsHead.prAction}}</button>
-            <button type="button" onClick="{{wsHead.remove}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bad-edge); background: transparent; color: var(--bad-text)">Remove worktree</button>
+            <button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">+ Agent here</button>
+            <button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">Open in editor</button>
+            <button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">{{wsHead.prAction}}</button>
+            <button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bad-edge); background: transparent; color: var(--bad-text)">Remove worktree</button>
           </div>
         </section>
       </sc-if>
@@ -220,7 +206,7 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
                     </sc-for>
                   </div>
                 </sc-if>
-                <sc-if value="{{n.hasWhy}}" hint-placeholder-val="{{ true }}"><div style="font-size: 13px; color: var(--text2); font-style: italic">“{{n.why}}”</div></sc-if>
+                <div style="font-size: 13px; color: var(--text2); font-style: italic">“{{n.why}}”</div>
                 <div style="display: flex; flex-wrap: wrap; gap: 8px">
                   <sc-for list="{{n.actions}}" as="act" hint-placeholder-count="3">
                     <button type="button" onClick="{{act.run}}" style="{{act.style}}">{{act.label}}</button>
@@ -231,12 +217,6 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
             </sc-for>
           </div>
         </section>
-      </sc-if>
-
-      <sc-if value="{{empty}}" hint-placeholder-val="{{ false }}">
-        <div style="padding: 28px; border-radius: 14px; border: 1px dashed var(--edge); color: var(--text2); font-size: 15px; line-height: 1.6">
-          <b style="color: var(--text)">No Claude Code sessions are running.</b><br>Start one in any repository and it appears here within seconds, or press <b>+ New agent</b>.
-        </div>
       </sc-if>
 
       <section aria-label="Agents" style="display: flex; flex-direction: column; gap: 10px; min-width: 0">
@@ -255,7 +235,9 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
             <label for="bulk" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Prompt for the selected agents</label>
             <input id="bulk" value="{{bulk.draft}}" onChange="{{bulk.typed}}" placeholder="Send the same prompt to all selected…" style="flex: 1 1 260px; min-width: 0; min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--bg); color: var(--text); font: inherit">
             <button type="button" onClick="{{bulk.send}}" style="min-height: 40px; padding: 0 14px; border-radius: 8px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">Send to {{bulk.count}}</button>
-            <button type="button" onClick="{{bulk.stop}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bad-edge); background: transparent; color: var(--bad-text)">Stop</button>
+            <button type="button" onClick="{{bulk.pause}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">Pause</button>
+            <button type="button" onClick="{{bulk.resume}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">Resume</button>
+            <button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bad-edge); background: transparent; color: var(--bad-text)">Stop</button>
             <button type="button" onClick="{{bulk.clear}}" style="min-height: 40px; padding: 0 10px; border-radius: 8px; border: none; background: transparent; color: var(--muted)">Clear</button>
           </form>
         </sc-if>
@@ -348,7 +330,7 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
                 <span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 14px; height: 8px; border-radius: 2px; background: var(--warn)"></span>waiting on you</span>
                 <span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 14px; height: 8px; border-radius: 2px; background: var(--bad)"></span>stuck</span>
                 <span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 14px; height: 8px; border-radius: 2px; background: var(--ok)"></span>done</span>
-                <span style="margin-left: auto">You kept agents waiting <span style="color: var(--warn); font-weight: 600">{{waitedTotal}}</span> in the last hour</span>
+                <span style="margin-left: auto">You kept agents waiting <span style="color: var(--warn); font-weight: 600">19 min</span> in the last hour</span>
               </div>
             </div>
           </div>
@@ -378,7 +360,11 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
         <sc-if value="{{sel.hasHealth}}" hint-placeholder-val="{{ false }}">
           <div style="padding: 8px 10px; border-radius: 8px; background: var(--bad-tint); color: var(--bad); font-size: 13px; font-weight: 600">⚠ {{sel.health}}</div>
         </sc-if>
-        <div style="font-size: 12px; color: var(--muted); font-family: 'IBM Plex Mono', monospace">{{sel.usage}}</div>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted)">
+          <span style="font-family: 'IBM Plex Mono', monospace">{{sel.cost}} of {{sel.cap}} cap</span>
+          <span style="flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden"><span style="{{sel.capBar}}"></span></span>
+          <span>pauses at cap</span>
+        </div>
       </div>
 
       <sc-if value="{{sel.hasPending}}" hint-placeholder-val="{{ true }}">
@@ -400,8 +386,7 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
       </div>
 
       <sc-if value="{{tabIs.activity}}" hint-placeholder-val="{{ true }}">
-        <sc-if value="{{sel.noFeed}}" hint-placeholder-val="{{ false }}"><p style="margin: 0; color: var(--muted); font-size: 13px">No activity yet. A session reports it once it runs the latest Tower plugin.</p></sc-if>
-        <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; max-height: 420px; overflow-y: auto">
+        <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px">
           <sc-for list="{{sel.feed}}" as="f" hint-placeholder-count="6">
             <li style="display: grid; grid-template-columns: 44px 18px 1fr; gap: 8px; padding: 6px 4px; border-radius: 6px; align-items: baseline">
               <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted)">{{f.t}}</span>
@@ -420,7 +405,7 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
               <li style="display: flex; gap: 10px; padding: 6px 8px; border-radius: 6px; background: var(--control)"><span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{file.path}}</span><span style="color: var(--ok)">+{{file.add}}</span><span style="color: var(--bad)">−{{file.del}}</span></li>
             </sc-for>
           </ul>
-          <button type="button" onClick="{{sel.openEditor}}" style="align-self: flex-start; min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">Open in editor</button>
+          <button type="button" style="align-self: flex-start; min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">Review full diff</button>
         </div>
       </sc-if>
 
@@ -435,103 +420,103 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
             </ul>
             <div style="font-size: 13px; color: var(--muted)">{{sel.reviews}}</div>
             <div style="display: flex; flex-wrap: wrap; gap: 8px">
-              <a href="{{sel.prUrl}}" target="_blank" rel="noopener" style="display: inline-flex; align-items: center; text-decoration: none; min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">Open on GitHub</a>
-              <button type="button" onClick="{{sel.merge}}" style="{{sel.mergeStyle}}">{{sel.mergeLabel}}</button>
+              <button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">Open on GitHub</button>
+              <button type="button" style="{{sel.mergeStyle}}">{{sel.mergeLabel}}</button>
             </div>
           </div>
         </sc-if>
         <sc-if value="{{sel.noPr}}" hint-placeholder-val="{{ false }}">
           <div style="display: flex; flex-direction: column; gap: 8px; color: var(--muted); font-size: 13px">
             <span>No pull request yet for ⎇ {{sel.branch}}.</span>
-            <button type="button" onClick="{{sel.askPr}}" style="align-self: flex-start; min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">Ask it to open one</button>
+            <button type="button" style="align-self: flex-start; min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">Ask it to open one</button>
           </div>
         </sc-if>
       </sc-if>
 
       <form onSubmit="{{send}}" style="margin-top: auto; display: flex; flex-direction: column; gap: 8px">
-        <label for="say" style="font-size: 12px; color: var(--muted)">Send to {{sel.repo}} · {{sel.name}} · type / for its commands</label>
-        <sc-if value="{{sel.cantSteer}}" hint-placeholder-val="{{ false }}">
-          <div role="note" style="padding: 8px 10px; border-radius: 8px; background: var(--warn-bg); border: 1px solid var(--warn-edge); font-size: 13px; color: var(--text2)">This session runs an older Tower plugin, so it can't receive from the cockpit. Restart it (or run <code>/reload-plugins</code> in it) to steer it from here.</div>
-        </sc-if>
-        <sc-if value="{{sel.hasQueued}}" hint-placeholder-val="{{ false }}">
-          <div role="status" style="font-size: 12px; color: var(--warn)">{{sel.queuedNote}}</div>
-        </sc-if>
-        <div style="position: relative; display: flex; gap: 8px">
-          <sc-if value="{{cmd.open}}" hint-placeholder-val="{{ false }}">
-            <div id="say-commands" role="listbox" aria-label="Slash commands" style="position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 5; max-height: 340px; overflow-y: auto; border-radius: 10px; border: 1px solid var(--edge); background: var(--panel); box-shadow: 0 -8px 24px rgba(0,0,0,0.18); padding: 4px">
-              <sc-for list="{{cmd.items}}" as="c" hint-placeholder-count="6">
-                <button type="button" role="option" aria-selected="{{c.on}}" onClick="{{c.pick}}" style="{{c.style}}">
-                  <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600; white-space: nowrap">{{c.name}}</span>
-                  <span style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px">{{c.description}}</span>
-                </button>
-              </sc-for>
-              <sc-if value="{{cmd.empty}}" hint-placeholder-val="{{ false }}">
-                <div style="padding: 10px 12px; font-size: 13px; color: var(--muted)">No command starts with {{cmd.query}}. Enter sends it as typed.</div>
-              </sc-if>
-              <sc-if value="{{cmd.hasNote}}" hint-placeholder-val="{{ false }}">
-                <div style="padding: 8px 12px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line)">{{cmd.note}}</div>
-              </sc-if>
-            </div>
-          </sc-if>
-          <input id="say" role="combobox" aria-expanded="{{cmd.expanded}}" aria-controls="say-commands" aria-autocomplete="list" autocomplete="off" onKeyDown="{{cmd.key}}" value="{{draft}}" onChange="{{typed}}" placeholder="{{sel.placeholder}}" style="flex: 1; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--bg); color: var(--text); font: inherit">
-          <button type="button" onClick="{{send}}" style="{{sel.sendStyle}}">Send</button>
+        <label for="say" style="font-size: 12px; color: var(--muted)">Send to {{sel.repo}} · {{sel.name}}</label>
+        <div style="display: flex; gap: 8px">
+          <input id="say" value="{{draft}}" onChange="{{typed}}" placeholder="{{sel.placeholder}}" style="flex: 1; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--bg); color: var(--text); font: inherit">
+          <button type="button" onClick="{{send}}" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">Send</button>
         </div>
       </form>
 
       <div style="display: flex; flex-wrap: wrap; gap: 8px">
-        <button type="button" onClick="{{sel.jump}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">Jump to terminal</button>
-        <button type="button" onClick="{{sel.stop}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bad-edge); background: transparent; color: var(--bad-text)">Stop</button>
+        <button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">Jump to terminal</button>
+        <button type="button" onClick="{{pauseSel}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">{{pauseLabel}}</button>
+        <button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bad-edge); background: transparent; color: var(--bad-text)">Stop</button>
       </div>
     </aside>
     </sc-if>
   </div>
-  <sc-if value="{{toast.show}}" hint-placeholder-val="{{ false }}">
-    <div role="status" style="{{toast.style}}">{{toast.text}}</div>
-  </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
 var PREFS_KEY = 'tower-cockpit-prefs';
-var COLORS = { needs: 'var(--warn)', working: 'var(--work)', done: 'var(--ok)', idle: 'var(--faint)', stuck: 'var(--bad)' };
-var TINTS = { needs: 'var(--warn-tint)', working: 'var(--work-tint)', done: 'var(--ok-tint)', idle: 'var(--line-soft)' };
-var LABELS = { needs: 'needs you', working: 'working', done: 'done', idle: 'idle' };
-var RANK = { needs: 0, working: 1, done: 2, idle: 3 };
+var COLORS = { needs: 'var(--warn)', working: 'var(--work)', done: 'var(--ok)', idle: 'var(--faint)', paused: 'var(--paused)', stuck: 'var(--bad)' };
+var TINTS = { needs: 'var(--warn-tint)', working: 'var(--work-tint)', done: 'var(--ok-tint)', idle: 'var(--line-soft)', paused: 'var(--paused-tint)' };
+var LABELS = { needs: 'needs you', working: 'working', done: 'done', idle: 'idle', paused: 'paused' };
+var RANK = { needs: 0, working: 1, paused: 2, done: 3, idle: 4 };
+
+var AGENTS = [
+  { id: 'a1', repo: 'dbt-platform', name: 'migrate-models', kind: 'bg', state: 'needs', doing: 'Waiting: git push', waited: 6, ctx: 61, cost: 1.12, cap: 3, path: 'D:\\Projects\\dbt-platform', branch: 'feat/migrate', model: 'Opus 5.5', mode: 'auto',
+    pending: { kind: 'permission', detail: 'git push origin feat/migrate', risk: 'Pushes to remote', why: 'All 12 models build. Ready to push.' },
+    add: 214, del: 88, files: 12, fileList: [['models/staging/stg_orders.sql', 41, 18], ['models/staging/stg_customers.sql', 37, 22], ['models/schema.yml', 66, 9], ['…and 9 more', 70, 39]],
+    feed: [['14:02', 'you', 'Migrate the staging models to the new schema and push'], ['14:03', 'tool', 'Read models/staging/*.sql (14 files)'], ['14:06', 'tool', 'Edit 12 files'], ['14:09', 'tool', 'Bash dbt build --select staging (12 ok)'], ['14:10', 'say', 'All 12 models build. Ready to push.'], ['14:10', 'wait', 'Asks to run: git push origin feat/migrate']],
+    lane: [[0, 8, 'idle'], [8, 50, 'working'], [50, 60, 'needs']] },
+  { id: 'a4', repo: 'infra', name: 'terraform-upgrade', kind: 'bg', state: 'needs', doing: 'Asks: which environment first?', waited: 3, ctx: 35, cost: 0.54, cap: 3, path: 'D:\\Projects\\infra', branch: 'chore/tf-1.9', model: 'Opus 5.5', mode: 'auto',
+    pending: { kind: 'question', detail: 'Which environment should I upgrade first?', options: ['staging', 'prod'], why: 'Plans are clean for both environments.' },
+    add: 6, del: 6, files: 3, fileList: [['stacks/staging/versions.tf', 2, 2], ['stacks/prod/versions.tf', 2, 2], ['.terraform-version', 2, 2]],
+    feed: [['14:05', 'you', 'Upgrade terraform to 1.9 across all stacks'], ['14:07', 'tool', 'Bash terraform init -upgrade (3 stacks)'], ['14:09', 'say', 'Plans are clean for both environments.'], ['14:11', 'wait', 'Asks: Which environment should I upgrade first?']],
+    lane: [[20, 42, 'working'], [42, 46, 'needs'], [46, 57, 'working'], [57, 60, 'needs']] },
+  { id: 'a8', repo: 'api', name: 'auth-refactor', kind: '', state: 'needs', doing: 'Wants to edit src/auth/session.ts', waited: 1, ctx: 44, cost: 0.71, cap: 3, path: 'D:\\Projects\\api', branch: 'refactor/auth', model: 'Opus 5.5', mode: 'default',
+    pending: { kind: 'edit', detail: 'Edit src/auth/session.ts', why: 'Swapping the token check to the new verifier.',
+      diff: [['@@ -41,3 +41,4 @@', 'hunk'], ['   const token = readToken(req)', 'ctx'], ['-  if (!token.valid) return deny()', 'del'], ['+  const ok = await verifier.check(token)', 'add'], ['+  if (!ok) return deny()', 'add']] },
+    add: 40, del: 12, files: 3, fileList: [['src/auth/verifier.ts', 31, 0], ['src/auth/session.ts', 6, 9], ['src/auth/index.ts', 3, 3]],
+    feed: [['13:50', 'you', 'Move session auth to the new verifier'], ['13:58', 'tool', 'Write src/auth/verifier.ts'], ['14:10', 'say', 'Swapping the token check to the new verifier.'], ['14:11', 'wait', 'Asks to edit src/auth/session.ts']],
+    lane: [[10, 59, 'working'], [59, 60, 'needs']] },
+  { id: 'a3', repo: 'web', name: 'flaky-tests', kind: '', state: 'working', doing: 'Bash npm test (attempt 4)', health: 'Looping: npm test failed 3× in a row', ctx: 48, cost: 0.86, cap: 3, path: 'D:\\Projects\\web', branch: 'fix/flaky-e2e', model: 'Sonnet 5.5', mode: 'accept edits',
+    add: 18, del: 4, files: 2, fileList: [['tests/checkout.spec.ts', 14, 3], ['playwright.config.ts', 4, 1]],
+    pr: { num: 412, title: '#412 Stabilize checkout e2e tests', checks: [['e2e (chromium)', 'fail'], ['unit', 'pass'], ['lint', 'pass']], reviews: 'No reviews yet', mergeable: false },
+    feed: [['13:58', 'you', 'Find and fix the flaky checkout tests'], ['14:04', 'tool', 'Edit tests/checkout.spec.ts'], ['14:06', 'tool', 'Bash npm test — 1 failed'], ['14:08', 'tool', 'Bash npm test — 1 failed'], ['14:10', 'tool', 'Bash npm test — 1 failed'], ['14:11', 'tool', 'Bash npm test (running)']],
+    lane: [[0, 44, 'working'], [44, 60, 'stuck']] },
+  { id: 'a9', repo: 'web', name: 'i18n-strings', kind: 'bg', state: 'working', doing: 'Bash npm run extract-strings', health: 'Stuck: no activity for 12 min', ctx: 30, cost: 0.40, cap: 2, path: 'D:\\Projects\\web', branch: 'feat/i18n', model: 'Haiku 4.5', mode: 'auto',
+    add: 120, del: 0, files: 8, fileList: [['locales/de.json', 60, 0], ['locales/fr.json', 60, 0]],
+    feed: [['13:40', 'you', 'Extract all UI strings into locale files'], ['13:58', 'tool', 'Bash npm run extract-strings (started)']],
+    lane: [[20, 48, 'working'], [48, 60, 'stuck']] },
+  { id: 'a2', repo: 'dbt-platform', name: 'docs-refresh', kind: '', state: 'working', doing: 'Edit models/README.md', ctx: 22, cost: 0.31, cap: 2, path: 'D:\\Projects\\dbt-platform', branch: 'docs/models', model: 'Haiku 4.5', mode: 'accept edits',
+    add: 60, del: 22, files: 1, fileList: [['models/README.md', 60, 22]],
+    feed: [['14:09', 'you', 'Refresh the models README from the current schema'], ['14:10', 'tool', 'Read schema.yml'], ['14:11', 'tool', 'Edit models/README.md']],
+    lane: [[52, 60, 'working']] },
+  { id: 'a6', repo: 'api', name: 'bump-deps', kind: 'bg', state: 'working', doing: 'Bash npm test', health: 'Context 87%: compaction soon', ctx: 87, cost: 1.95, cap: 2, path: 'D:\\Projects\\api', branch: 'chore/deps', model: 'Sonnet 5.5', mode: 'auto',
+    add: 96, del: 96, files: 2, fileList: [['package.json', 31, 31], ['package-lock.json', 65, 65]],
+    feed: [['13:30', 'you', 'Bump all minor dependency versions and run the tests'], ['13:44', 'tool', 'Bash npm update'], ['14:11', 'tool', 'Bash npm test']],
+    lane: [[0, 60, 'working']] },
+  { id: 'a5', repo: 'infra', name: 'lint-fix', kind: '', state: 'done', doing: 'Fixed 3 files; all checks pass', ctx: 18, cost: 0.12, cap: 1, path: 'D:\\Projects\\infra', branch: 'fix/tflint', model: 'Haiku 4.5', mode: 'default',
+    add: 9, del: 9, files: 3, fileList: [['stacks/net/main.tf', 3, 3], ['stacks/db/main.tf', 3, 3], ['stacks/app/main.tf', 3, 3]],
+    pr: { num: 88, title: '#88 Fix tflint warnings', checks: [['tflint', 'pass'], ['plan', 'pass']], reviews: '1 approval · ready to merge', mergeable: true },
+    feed: [['14:00', 'you', 'Fix the tflint warnings and open a PR'], ['14:02', 'tool', 'Edit 3 files'], ['14:03', 'tool', 'Bash gh pr create'], ['14:03', 'say', 'Opened #88; all checks pass.']],
+    lane: [[40, 55, 'working'], [55, 60, 'done']] },
+  { id: 'a7', repo: 'tower-mods', name: 'main', kind: '', state: 'idle', doing: 'Waiting for your next prompt', ctx: 54, cost: 2.30, cap: 5, path: 'D:\\Projects\\tower-mods', branch: 'main', model: 'Opus 5.5', mode: 'auto',
+    add: 312, del: 40, files: 9, fileList: [['plugins/strip/hooks/register.ts', 88, 0], ['plugins/tower/hooks/register.tsx', 120, 30], ['README.md', 40, 10]],
+    feed: [['13:05', 'you', 'Add a status line mod'], ['13:20', 'say', 'Added strip; 7 tests pass.']],
+    lane: [[0, 20, 'working'], [20, 60, 'idle']] }
+];
+
 var ICONS = { you: '›', tool: '▸', say: '◆', wait: '!', sent: '↗' };
 var ICON_COLORS = { you: 'var(--muted)', tool: 'var(--work)', say: 'var(--ok)', wait: 'var(--warn)', sent: 'var(--work)' };
 var DIFF_STYLES = { hunk: 'color: var(--muted)', ctx: 'color: var(--text2)', del: 'color: var(--bad); background: var(--bad-tint2)', add: 'color: var(--ok); background: var(--ok-tint2)' };
-var SEG = { working: 'var(--work)', needs: 'var(--warn)', stuck: 'var(--bad)', done: 'var(--ok)', idle: 'transparent' };
-var MODELS = [['', 'Default model'], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku']];
-var MODES = [['auto', 'auto'], ['acceptEdits', 'accept edits'], ['plan', 'plan first'], ['default', 'ask for everything']];
-// Shown when a session has not published its own list (it started before this plugin
-// could): Claude Code's everyday built-ins, typed in full they all still run.
-var BUILTIN_COMMANDS = [
-  ['compact', 'Compact the conversation to free context'], ['clear', 'Start a fresh conversation'],
-  ['cost', 'Show this session\'s cost and usage'], ['context', 'Show what fills the context window'],
-  ['model', 'Switch the model, e.g. /model sonnet'], ['status', 'Show version, model and account'],
-  ['memory', 'Edit CLAUDE.md memory'], ['review', 'Review a pull request'],
-  ['init', 'Write a CLAUDE.md for this repo'], ['permissions', 'Show or change permission rules'],
-  ['agents', 'Manage subagents'], ['mcp', 'Manage MCP servers'], ['help', 'List what Claude Code can do']
-].map(function (c) { return { name: c[0], description: c[1] }; });
-var MENU_MAX = 40;
-var BTN_PRIMARY ='min-height: 40px; padding: 0 14px; border-radius: 8px; border: none; background: var(--warn); color: var(--on-warn); font-weight: 600';
-var BTN_SECONDARY = 'min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--warn-edge); background: transparent; color: var(--text)';
 
 function dot(state, size) {
-  return 'width: ' + size + 'px; height: ' + size + 'px; border-radius: 50%; flex: none; background: ' + (COLORS[state] || COLORS.idle);
+  return 'width: ' + size + 'px; height: ' + size + 'px; border-radius: 50%; flex: none; background: ' + COLORS[state];
 }
 function pill(state) {
   return 'justify-self: start; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: ' + TINTS[state] + '; color: ' + (state === 'idle' ? 'var(--muted)' : COLORS[state]);
 }
-function money(n) { return '$' + (Number(n) || 0).toFixed(2); }
-function key(path) { return String(path || '').toLowerCase().replace(/[\\/]+$/, ''); }
-function sum(list, field) { return list.reduce(function (n, a) { return n + (a[field] || 0); }, 0); }
-function worstOf(list) {
-  if (list.some(function (a) { return a.state === 'needs'; })) return 'needs';
-  if (list.some(function (a) { return a.health; })) return 'stuck';
-  if (list.some(function (a) { return a.state === 'working'; })) return 'working';
-  if (list.some(function (a) { return a.state === 'done'; })) return 'done';
-  return 'idle';
-}
+function money(n) { return '$' + n.toFixed(2); }
+var BTN_PRIMARY = 'min-height: 40px; padding: 0 14px; border-radius: 8px; border: none; background: var(--warn); color: var(--on-warn); font-weight: 600';
+var BTN_SECONDARY = 'min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--warn-edge); background: transparent; color: var(--text)';
+var SEG = { working: 'var(--work)', needs: 'var(--warn)', stuck: 'var(--bad)', done: 'var(--ok)', idle: 'transparent' };
 
 class Component extends DCLogic {
   constructor(props) {
@@ -540,28 +525,26 @@ class Component extends DCLogic {
     try { saved = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') || {}; } catch (err) { saved = {}; }
     var systemLight = false;
     try { systemLight = window.matchMedia('(prefers-color-scheme: light)').matches; } catch (err) {}
-    this.state = {
-      data: { agents: [], repos: [], totals: { total: 0, needs: 0, working: 0, done: 0, alerts: 0, cost: 0 }, error: null },
-      conn: 'connecting', repo: 'all', ws: null, selected: null, draft: '', checked: {}, bulkDraft: '', tab: 'activity',
+    this.state = { repo: 'all', ws: null, selected: 'a1', resolved: {}, sent: {}, draft: '', checked: {}, bulkDraft: '', paused: {}, tab: 'activity',
       view: saved.view || 'fleet', theme: saved.theme || 'system', systemLight: systemLight,
       folded: saved.folded || {}, railCollapsed: Boolean(saved.railCollapsed), detailCollapsed: Boolean(saved.detailCollapsed),
-      formOpen: false, formRepo: null, formPath: null, formWorktree: true, formName: '', formBase: 'main', formModel: '', formMode: 'auto', formTask: '',
-      toast: null, commands: {}, cmdIndex: 0, cmdClosed: false, menuFor: null
-    };
+      extra: [], formRepo: null, formName: '', formBase: 'main', formModel: 'Opus 5.5', formMode: 'auto', formTask: '' };
   }
 
   componentDidMount() {
     var self = this;
-    this.events = new EventSource('/api/events');
-    this.events.onmessage = function (e) { self.setState({ data: JSON.parse(e.data), conn: 'live' }); };
-    this.events.onerror = function () { self.setState({ conn: 'down' }); };
     try {
       this.mq = window.matchMedia('(prefers-color-scheme: light)');
-      this.mq.addEventListener('change', function (e) { self.setState({ systemLight: e.matches }); });
+      this.onScheme = function (e) { self.setState({ systemLight: e.matches }); };
+      this.mq.addEventListener('change', this.onScheme);
     } catch (err) {}
-    document.addEventListener('keydown', function (e) { self.onKey(e); });
   }
 
+  componentWillUnmount() {
+    try { this.mq.removeEventListener('change', this.onScheme); } catch (err) {}
+  }
+
+  // setState for the choices worth keeping; saved once the state lands.
   remember(patch) {
     this.setState(patch, function () {
       var st = this.state;
@@ -569,271 +552,128 @@ class Component extends DCLogic {
     });
   }
 
-  toast(text, isError) {
-    var self = this;
-    clearTimeout(this.toastTimer);
-    this.setState({ toast: { text: text, isError: Boolean(isError) } });
-    this.toastTimer = setTimeout(function () { self.setState({ toast: null }); }, 4000);
+  // A worktree's folder, as `claude -w <name>` lays it out under the repo.
+  wsPath(repo, branch) {
+    var root = 'D:\\Projects\\' + repo;
+    return branch === 'main' ? root + '  (main checkout)' : root + '\\.claude\\worktrees\\' + branch.replace(/[^A-Za-z0-9._-]+/g, '-');
   }
 
-  post(action, body) {
-    var self = this;
-    return fetch('/api/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      .then(function (r) { return r.json(); })
-      .then(function (res) { self.toast(res.message || (res.ok ? 'Done.' : 'Failed.'), !res.ok); return res; })
-      .catch(function (err) { self.toast('The cockpit server did not answer: ' + err.message, true); return { ok: false }; });
-  }
-
-  loadCommands(id) {
-    var self = this;
-    if (!id || this.state.commands[id]) return;
-    fetch('/api/commands?id=' + encodeURIComponent(id)).then(function (r) { return r.json(); }).then(function (list) {
-      var commands = Object.assign({}, self.state.commands);
-      commands[id] = list;
-      self.setState({ commands: commands });
-    }).catch(function () {});
-  }
-
-  // One ⋯ menu open at a time; choosing an item closes it.
-  toggleMenu(id) {
-    this.setState({ menuFor: this.state.menuFor === id ? null : id });
-  }
-
-  menuItem(label, danger, run) {
-    var self = this;
-    return {
-      label: label,
-      style: 'min-height: 34px; padding: 0 10px; border: none; border-radius: 6px; background: transparent; text-align: left; font-size: 13px; color: ' + (danger ? 'var(--bad-text)' : 'var(--text)'),
-      run: function () { self.setState({ menuFor: null }); run(); }
-    };
-  }
-
-  // Refused while it has uncommitted changes; then a second, explicit confirm forces it.
-  removeWorktree(root, w) {
-    var self = this;
-    if (!window.confirm('Remove the worktree ' + w.branch + ' at ' + w.path + '? Its branch is kept.')) return;
-    var leave = function (res) { if (res.ok && self.state.ws === w.branch) self.setState({ ws: null }); };
-    this.post('remove-worktree', { root: root, path: w.path }).then(function (res) {
-      if (res.dirty && window.confirm(res.message + ' Remove anyway? Those changes are deleted for good.')) {
-        self.post('remove-worktree', { root: root, path: w.path, force: true }).then(leave);
-      } else {
-        leave(res);
-      }
-    });
-  }
-
-  // The slash-command drop-up: open while the draft is "/" plus a command name, before a space.
-  commandMenu(sel) {
-    var self = this, st = this.state;
-    var m = /^\/(\S*)$/.exec(st.draft);
-    var known = sel && st.commands[sel.id];
-    var list = known && known.length ? known : BUILTIN_COMMANDS;
-    var query = m ? m[1].toLowerCase() : '';
-    // Claude Code's own commands before plugins' (`plugin:name`), then the closest match.
-    var rank = function (c) {
-      var name = c.name.toLowerCase();
-      return [name.indexOf(':') >= 0 ? 1 : 0, name === query ? 0 : name.indexOf(query) === 0 ? 1 : 2, name.length];
-    };
-    var hits = list.filter(function (c) { return c.name.toLowerCase().indexOf(query) >= 0; })
-      .map(function (c, i) { return { c: c, r: rank(c), i: i }; })
-      .sort(function (x, y) { return x.r[0] - y.r[0] || x.r[1] - y.r[1] || (query ? x.r[2] - y.r[2] : x.i - y.i); })
-      .map(function (h) { return h.c; })
-      .slice(0, MENU_MAX);
-    var index = Math.min(st.cmdIndex, Math.max(0, hits.length - 1));
-    var open = Boolean(m) && !st.cmdClosed && Boolean(sel);
-    var choose = function (c) {
-      self.setState({ draft: '/' + c.name + ' ', cmdIndex: 0, cmdClosed: true }, function () {
-        var input = document.getElementById('say');
-        if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
-      });
-    };
-    return {
-      open: open, expanded: String(open), empty: open && hits.length === 0, query: '/' + query,
-      hasNote: open && !(known && known.length),
-      note: 'This session started before Tower could list its commands, so these are the common built-ins. Restart it to see all of its commands, plugins and skills included.',
-      items: hits.map(function (c, i) {
-        return {
-          name: '/' + c.name, description: c.description, on: String(i === index),
-          style: 'display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: baseline; width: 100%; min-height: 36px; padding: 6px 10px; border: none; border-radius: 7px; text-align: left; color: var(--text); background: ' + (i === index ? 'var(--sel)' : 'transparent'),
-          pick: function () { choose(c); }
-        };
-      }),
-      key: function (e) {
-        if (!open) return;
-        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-          e.preventDefault();
-          var step = e.key === 'ArrowDown' ? 1 : -1;
-          self.setState({ cmdIndex: (index + step + hits.length) % Math.max(1, hits.length) }, function () {
-            var on = document.querySelector('#say-commands [aria-selected="true"]');
-            if (on) on.scrollIntoView({ block: 'nearest' });
-          });
-        } else if ((e.key === 'Enter' || e.key === 'Tab') && hits.length) {
-          e.preventDefault();
-          choose(hits[index]);
-        } else if (e.key === 'Escape') {
-          e.preventDefault();
-          self.setState({ cmdClosed: true });
-        }
-      }
-    };
-  }
-
-  agents() {
-    return (this.state.data.agents || []).slice().sort(function (x, y) { return RANK[x.state] - RANK[y.state] || (y.waited || 0) - (x.waited || 0); });
-  }
-
-  // The one picked, else the first that can be steered from here, else the first.
-  selectedAgent(list) {
+  createWorkstream(e) {
+    if (e && e.preventDefault) e.preventDefault();
     var st = this.state;
-    return list.filter(function (a) { return a.id === st.selected; })[0]
-      || list.filter(function (a) { return a.canSteer; })[0] || list[0] || null;
+    var name = (st.formName || '').trim().replace(/\s+/g, '-');
+    if (!name) return;
+    var id = 'n' + (st.extra.length + 1);
+    var agent = { id: id, repo: st.formRepo, name: name, kind: 'bg', state: 'working', doing: 'Creating worktree from ' + st.formBase + '…', ctx: 2, cost: 0, cap: 3,
+      path: this.wsPath(st.formRepo, name), branch: name, base: st.formBase, model: st.formModel, mode: st.formMode, add: 0, del: 0, files: 0, fileList: [],
+      feed: [['now', 'you', st.formTask || '(no task yet)'], ['now', 'tool', 'git worktree add -b ' + name + ' (from ' + st.formBase + ')']], lane: [[59, 60, 'working']] };
+    this.setState({ extra: st.extra.concat([agent]), formRepo: null, formName: '', formTask: '', repo: st.formRepo, ws: name, selected: id });
   }
 
-  openForm(root, path, worktree) {
-    var repo = (this.state.data.repos || []).filter(function (r) { return key(r.root) === key(root); })[0];
-    var main = repo && repo.worktrees.filter(function (w) { return key(w.path) === key(repo.root); })[0];
-    this.setState({ formOpen: true, formRepo: root, formPath: path, formWorktree: worktree, formName: '', formTask: '', formBase: 'current' });
+  live(a) {
+    var st = this.state;
+    var out = a;
+    if (st.resolved[a.id]) out = Object.assign({}, out, { state: 'working', doing: st.resolved[a.id], pending: null });
+    if (st.paused[a.id]) out = Object.assign({}, out, { state: 'paused', doing: 'Paused by you' });
+    return out;
   }
 
-  launch() {
-    var st = this.state, self = this;
-    if (st.formWorktree && !st.formName.trim()) { this.toast('Name the workstream first.', true); return; }
-    this.post('launch', { repo: st.formWorktree ? st.formRepo : (st.formPath || st.formRepo), name: st.formName, base: st.formBase, task: st.formTask, model: st.formModel, mode: st.formMode, worktree: st.formWorktree })
-      .then(function (res) {
-        if (!res.ok) return;
-        var branch = st.formName.trim().replace(/\s+/g, '-');
-        self.setState({ formOpen: false, repo: st.formRepo, ws: st.formWorktree ? branch : self.state.ws, selected: res.id || self.state.selected });
-      });
+  note(id, text) {
+    var sent = Object.assign({}, this.state.sent);
+    sent[id] = (sent[id] || []).concat([['now', 'sent', text]]);
+    return sent;
+  }
+
+  resolve(a, doing, feedText) {
+    var resolved = Object.assign({}, this.state.resolved);
+    resolved[a.id] = doing;
+    this.setState({ resolved: resolved, sent: this.note(a.id, feedText) });
   }
 
   actionsFor(a) {
-    var self = this, p = a.pending;
-    if (!p) return [];
-    if (p.kind === 'local') return [{ label: 'Jump to it', style: BTN_PRIMARY, run: function () { self.post('jump', { id: a.id, kind: a.kind, pid: a.pid, path: a.path }); } }];
+    var self = this;
+    if (!a.pending) return [];
+    var p = a.pending;
     if (p.kind === 'question') {
-      return (p.options || []).slice(0, 4).map(function (opt, i) {
-        return { label: opt + '  ' + (i + 1), style: i === 0 ? BTN_PRIMARY : BTN_SECONDARY, run: function () { self.post('answer', { id: a.id, pendingId: p.id, text: opt }); } };
+      return p.options.map(function (opt, i) {
+        return { label: opt + '  ' + (i + 1), style: i === 0 ? BTN_PRIMARY : BTN_SECONDARY, run: function () { self.resolve(a, 'Upgrading ' + opt + ' first', 'Answered: ' + opt); } };
       });
     }
     return [
-      { label: 'Allow  A', style: BTN_PRIMARY, run: function () { self.post('answer', { id: a.id, pendingId: p.id, allow: true }); } },
-      { label: 'Deny  D', style: BTN_SECONDARY, run: function () { self.post('answer', { id: a.id, pendingId: p.id, allow: false }); } }
+      { label: 'Allow  A', style: BTN_PRIMARY, run: function () { self.resolve(a, 'Running: ' + p.detail, 'Approved once: ' + p.detail); } },
+      { label: 'Always allow', style: BTN_SECONDARY, run: function () { self.resolve(a, 'Running: ' + p.detail, 'Always allowed for this agent: ' + p.detail); } },
+      { label: 'Deny  D', style: BTN_SECONDARY, run: function () { self.resolve(a, 'Looking for another way', 'Denied: ' + p.detail); } }
     ];
   }
 
-  // J/K walk the waiting agents, A/D allow or deny, 1-4 answer, X selects, T toggles the timeline.
-  onKey(e) {
-    var tag = (e.target && e.target.tagName) || '';
-    if (/INPUT|TEXTAREA|SELECT/.test(tag) || e.ctrlKey || e.metaKey || e.altKey) return;
-    var list = this.agents();
-    var needs = list.filter(function (a) { return a.state === 'needs'; });
-    var sel = this.selectedAgent(list);
-    var k = e.key.toLowerCase();
-    if ((k === 'j' || k === 'k') && needs.length) {
-      var at = Math.max(0, needs.indexOf(sel));
-      var next = needs[(at + (k === 'j' ? 1 : needs.length - 1)) % needs.length];
-      this.setState({ selected: next.id });
-      this.loadCommands(next.id);
-    } else if (sel && sel.pending && (k === 'a' || k === 'd') && sel.pending.kind !== 'question' && sel.pending.kind !== 'local') {
-      this.post('answer', { id: sel.id, pendingId: sel.pending.id, allow: k === 'a' });
-    } else if (sel && sel.pending && sel.pending.kind === 'question' && /^[1-4]$/.test(k)) {
-      var opt = (sel.pending.options || [])[Number(k) - 1];
-      if (opt) this.post('answer', { id: sel.id, pendingId: sel.pending.id, text: opt });
-    } else if (sel && k === 'x') {
-      var c = Object.assign({}, this.state.checked);
-      if (c[sel.id]) delete c[sel.id]; else c[sel.id] = true;
-      this.setState({ checked: c });
-    } else if (k === 't') {
-      this.remember({ view: this.state.view === 'timeline' ? 'fleet' : 'timeline' });
-    } else {
-      return;
-    }
-    e.preventDefault();
+  setPaused(ids, value) {
+    var paused = Object.assign({}, this.state.paused);
+    ids.forEach(function (id) { if (value) paused[id] = true; else delete paused[id]; });
+    this.setState({ paused: paused });
   }
 
   renderVals() {
-    var self = this, st = this.state, data = st.data;
-    var live = this.agents();
-    var repoList = data.repos || [];
-    var inRepo = function (root) { return live.filter(function (a) { return key(a.repoRoot) === key(root); }); };
+    var self = this;
+    var st = this.state;
+    var live = AGENTS.concat(st.extra).map(function (a) { return self.live(a); }).sort(function (x, y) { return RANK[x.state] - RANK[y.state] || (y.waited || 0) - (x.waited || 0); });
 
-    var repos = [{ root: 'all', name: 'All repositories', worktrees: [] }].concat(repoList).map(function (r) {
-      var isAll = r.root === 'all';
-      var mine = isAll ? live : inRepo(r.root);
-      var isFolded = Boolean(st.folded[r.root]);
+    var repoNames = ['all'];
+    live.forEach(function (a) { if (repoNames.indexOf(a.repo) < 0) repoNames.push(a.repo); });
+    var worstOf = function (list) {
+      return list.some(function (a) { return a.state === 'needs'; }) ? 'needs' : (list.some(function (a) { return a.health; }) ? 'stuck' : (list.some(function (a) { return a.state === 'working'; }) ? 'working' : (list.some(function (a) { return a.state === 'done'; }) ? 'done' : 'idle')));
+    };
+    var sum = function (list, key) { return list.reduce(function (n, a) { return n + (a[key] || 0); }, 0); };
+    var prOf = function (list) { return list.filter(function (a) { return a.pr; }).map(function (a) { return a.pr; })[0]; };
+
+    var repos = repoNames.map(function (name) {
+      var mine = live.filter(function (a) { return name === 'all' || a.repo === name; });
+      var active = st.repo === name && !st.ws;
+      var branches = [];
+      mine.forEach(function (a) { if (branches.indexOf(a.branch) < 0) branches.push(a.branch); });
+      var isFolded = Boolean(st.folded[name]);
       var waitingHere = mine.filter(function (a) { return a.state === 'needs'; }).length;
-      var active = st.repo === r.root && !st.ws;
       return {
-        name: r.name, count: String(mine.length), isAll: isAll,
-        expanded: String(!isFolded), chevron: isFolded ? '▸' : '▾',
-        foldLabel: (isFolded ? 'Show' : 'Hide') + ' workstreams of ' + r.name,
-        fold: function () { var f = Object.assign({}, self.state.folded); if (f[r.root]) delete f[r.root]; else f[r.root] = true; self.remember({ folded: f }); },
-        showWs: !isAll, showList: !isAll && !isFolded,
-        summary: isAll ? String(mine.length) : (isFolded ? r.worktrees.length + ' ws' + (waitingHere ? ' · ' + waitingHere + '!' : '') : String(mine.length)),
-        initials: isAll ? 'ALL' : r.name.replace(/[^A-Za-z0-9]+/g, ' ').trim().split(' ').map(function (w) { return w.charAt(0); }).join('').slice(0, 3).toUpperCase(),
-        miniStyle: 'width: 48px; min-height: 44px; border-radius: 8px; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: ' + (st.repo === r.root ? 'var(--sel)' : 'transparent'),
+        name: name === 'all' ? 'All repositories' : name,
+        count: String(mine.length),
+        isAll: name === 'all',
+        expanded: String(!isFolded),
+        chevron: isFolded ? '▸' : '▾',
+        foldLabel: (isFolded ? 'Show' : 'Hide') + ' workstreams of ' + name,
+        fold: function () { var f = Object.assign({}, self.state.folded); if (f[name]) delete f[name]; else f[name] = true; self.remember({ folded: f }); },
+        showList: name !== 'all' && !isFolded,
+        // Folded, the row still says what is inside: workstreams, and who waits on you.
+        summary: name === 'all' ? String(mine.length) : (isFolded ? branches.length + ' ws' + (waitingHere ? ' · ' + waitingHere + '!' : '') : String(mine.length)),
+        initials: name === 'all' ? 'ALL' : name.replace(/[^A-Za-z0-9]+/g, ' ').trim().split(' ').map(function (w) { return w.charAt(0); }).join('').slice(0, 3).toUpperCase(),
+        miniStyle: 'width: 48px; min-height: 44px; border-radius: 8px; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: ' + (st.repo === name ? 'var(--sel)' : 'transparent'),
         dot: dot(worstOf(mine), 8),
-        style: 'flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 8px; border: none; color: var(--text); background: ' + (active ? 'var(--sel)' : 'transparent') + '; font-weight: ' + (st.repo === r.root ? '600' : '400'),
-        pick: function () { self.setState({ repo: r.root, ws: null }); },
-        newWs: function () { self.openForm(r.root, null, true); },
-        menuOpen: st.menuFor === 'repo:' + r.root, menuExpanded: String(st.menuFor === 'repo:' + r.root),
-        menuLabel: 'Actions for ' + r.name,
-        toggleMenu: function () { self.toggleMenu('repo:' + r.root); },
-        menu: isAll ? [] : [
-          self.menuItem('Rename…', false, function () {
-            var name = window.prompt('Name to show for ' + r.root + ' (only in the cockpit):', r.name);
-            if (name && name.trim()) self.post('rename-repo', { root: r.root, name: name.trim() });
-          }),
-          self.menuItem('Remove from cockpit', true, function () {
-            if (!window.confirm('Remove ' + r.name + ' from the cockpit? Nothing on disk changes, and its sessions keep running. Add it again any time with + Add repository.')) return;
-            self.post('hide-repo', { root: r.root }).then(function (res) { if (res.ok && self.state.repo === r.root) self.setState({ repo: 'all', ws: null }); });
-          })
-        ],
-        ws: r.worktrees.map(function (w) {
-          var inWs = mine.filter(function (a) { return a.branch === w.branch; });
-          var on = st.repo === r.root && st.ws === w.branch;
-          var isMain = key(w.path) === key(r.root);
-          var menuId = 'ws:' + r.root + '|' + w.branch;
-          var items = [
-            self.menuItem('New agent here', false, function () { self.openForm(r.root, w.path, false); self.setState({ repo: r.root, ws: w.branch }); }),
-            self.menuItem('Open in editor', false, function () { self.post('open-editor', { path: w.path }); })
-          ];
-          if (!isMain) {
-            items.push(self.menuItem('Rename branch…', false, function () {
-              var to = window.prompt('New name for the branch ' + w.branch + ':', w.branch);
-              if (!to || to.trim() === w.branch) return;
-              self.post('rename-branch', { path: w.path, from: w.branch, to: to.trim() }).then(function (res) {
-                if (res.ok && self.state.ws === w.branch) self.setState({ ws: to.trim().replace(/\s+/g, '-') });
-              });
-            }));
-            items.push(self.menuItem('Remove worktree…', true, function () { self.removeWorktree(r.root, w); }));
-          }
+        style: 'flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 8px; border: none; color: var(--text); background: ' + (active ? 'var(--sel)' : 'transparent') + '; font-weight: ' + (st.repo === name ? '600' : '400'),
+        pick: function () { self.setState({ repo: name, ws: null }); },
+        showWs: name !== 'all',
+        newWs: function () { self.setState({ formRepo: name, formName: '', formTask: '' }); },
+        ws: name === 'all' ? [] : branches.map(function (b) {
+          var inWs = mine.filter(function (a) { return a.branch === b; });
+          var pr = prOf(inWs);
+          var on = st.repo === name && st.ws === b;
           return {
-            name: w.branch, count: String(inWs.length), add: String(sum(inWs, 'add')), del: String(sum(inWs, 'del')),
-            prShort: w.pr ? '· #' + w.pr.num : '',
-            dot: dot(inWs.length ? worstOf(inWs) : 'idle', 7),
-            style: 'flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 2px 8px; border-radius: 6px; border: none; color: var(--text); background: ' + (on ? 'var(--sel)' : 'transparent') + '; box-shadow: ' + (on ? 'inset 2px 0 0 var(--work)' : 'none'),
-            pick: function () { self.setState({ repo: r.root, ws: w.branch }); },
-            menuOpen: st.menuFor === menuId, menuExpanded: String(st.menuFor === menuId),
-            menuLabel: 'Actions for ' + w.branch,
-            toggleMenu: function () { self.toggleMenu(menuId); },
-            menu: items
+            name: b, count: String(inWs.length), add: String(sum(inWs, 'add')), del: String(sum(inWs, 'del')),
+            prShort: pr ? '· #' + pr.num : '',
+            dot: dot(worstOf(inWs), 7),
+            style: 'display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 2px 8px; border-radius: 6px; border: none; color: var(--text); background: ' + (on ? 'var(--sel)' : 'transparent') + '; box-shadow: ' + (on ? 'inset 2px 0 0 var(--work)' : 'none'),
+            pick: function () { self.setState({ repo: name, ws: b }); }
           };
         })
       };
     });
 
-    var scoped = live.filter(function (a) { return (st.repo === 'all' || key(a.repoRoot) === key(st.repo)) && (!st.ws || a.branch === st.ws); });
-    var sel = this.selectedAgent(scoped.length ? scoped : live);
-    if (sel) this.loadCommands(sel.id);
-
+    var scoped = live.filter(function (a) { return (st.repo === 'all' || a.repo === st.repo) && (!st.ws || a.branch === st.ws); });
     var agents = scoped.map(function (a) {
-      var chosen = sel && a.id === sel.id;
-      var pr = a.pr ? ('#' + a.pr.num + (a.pr.checks.some(function (c) { return c[1] === 'fail'; }) ? ' · CI ✗' : a.pr.checks.length ? ' · CI ✓' : '') + (a.pr.mergeable ? ' · ready' : '')) : '—';
+      var chosen = a.id === st.selected;
+      var pr = a.pr ? ('#' + a.pr.num + (a.pr.checks.some(function (c) { return c[1] === 'fail'; }) ? ' · CI ✗' : ' · CI ✓') + (a.pr.mergeable ? ' · ready' : '')) : '—';
       return {
-        repo: a.repo, name: a.name, kindTag: a.kind, stateLabel: LABELS[a.state], doing: a.doing, ctx: a.ctx + '%', cost: money(a.cost),
+        repo: a.repo, name: a.name, kindTag: a.kind === 'bg' ? 'bg' : '',
+        stateLabel: LABELS[a.state], doing: a.doing, ctx: a.ctx + '%', cost: money(a.cost),
         add: String(a.add), del: String(a.del), files: String(a.files), pr: pr,
-        prStyle: "font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: " + (!a.pr ? 'var(--faint)' : (pr.indexOf('✗') >= 0 ? 'var(--bad)' : 'var(--ok)')),
+        prStyle: 'font-family: \'IBM Plex Mono\', monospace; font-size: 12px; color: ' + (!a.pr ? 'var(--faint)' : (pr.indexOf('✗') >= 0 ? 'var(--bad)' : 'var(--ok)')),
         hasHealth: Boolean(a.health), health: a.health || '',
         dot: dot(a.health ? 'stuck' : a.state, 10), pill: pill(a.state),
         ctxBar: 'display: block; height: 100%; width: ' + a.ctx + '%; background: ' + (a.ctx >= 80 ? 'var(--bad)' : 'var(--bar)'),
@@ -845,48 +685,52 @@ class Component extends DCLogic {
       };
     });
 
-    var needs = scoped.filter(function (a) { return a.state === 'needs' && a.pending; }).map(function (a) {
-      var p = a.pending, old = a.waited >= 5;
+    var needs = scoped.filter(function (a) { return a.state === 'needs'; }).map(function (a) {
+      var p = a.pending;
+      var old = a.waited >= 5;
       return {
-        repo: a.repo, name: a.name, waited: a.waited + 'm', detail: p.detail, why: p.why || '', hasWhy: Boolean(p.why),
-        waitStyle: "font-size: 12px; font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: " + (old ? 'var(--bad)' : 'var(--warn)'),
+        repo: a.repo, name: a.name, waited: a.waited + 'm', detail: p.detail, why: p.why,
+        waitStyle: 'font-size: 12px; font-family: \'IBM Plex Mono\', monospace; font-weight: 600; color: ' + (old ? 'var(--bad)' : 'var(--warn)'),
         cardStyle: 'background: var(--warn-bg); border: 1px solid ' + (old ? 'var(--bad-edge2)' : 'var(--warn-edge)') + '; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px',
-        kindLabel: p.kind === 'question' ? 'Asks you' : p.kind === 'edit' ? 'Wants to edit' : p.kind === 'local' ? 'Waiting in its terminal' : 'Wants to run',
+        kindLabel: p.kind === 'question' ? 'Asks you' : (p.kind === 'edit' ? 'Wants to edit' : 'Wants to run'),
         hasRisk: Boolean(p.risk), risk: p.risk || '',
-        hasDiff: Boolean(p.diff && p.diff.length), diff: (p.diff || []).map(function (d) { return { text: d[0], style: 'padding: 1px 10px; white-space: pre; ' + DIFF_STYLES[d[1]] }; }),
+        hasDiff: Boolean(p.diff), diff: (p.diff || []).map(function (d) { return { text: d[0], style: 'padding: 1px 10px; white-space: pre; ' + DIFF_STYLES[d[1]] }; }),
         actions: self.actionsFor(a),
         open: function () { self.setState({ selected: a.id }); }
       };
     });
 
-    var waitedMinutes = 0;
     var lanes = scoped.map(function (a) {
-      (a.lane || []).forEach(function (s) { if (s[2] === 'needs') waitedMinutes += s[1] - s[0]; });
       return {
         repo: a.repo, name: a.name,
-        segs: (a.lane || []).filter(function (s) { return s[2] !== 'idle'; }).map(function (s) {
-          return { title: s[2] + ' ' + Math.round(60 - s[0]) + '–' + Math.round(60 - s[1]) + ' min ago',
+        segs: a.lane.filter(function (s) { return s[2] !== 'idle'; }).map(function (s) {
+          return { title: s[2] + ' ' + (60 - s[0]) + '–' + (60 - s[1]) + ' min ago',
             style: 'position: absolute; top: 3px; bottom: 3px; border-radius: 3px; left: ' + (s[0] / 60 * 100) + '%; width: ' + ((s[1] - s[0]) / 60 * 100) + '%; background: ' + SEG[s[2]] };
         })
       };
     });
 
-    var checkedIds = Object.keys(st.checked).filter(function (id) { return live.some(function (a) { return a.id === id; }); });
+    var s = live.filter(function (a) { return a.id === st.selected; })[0] || live[0];
+    var feed = s.feed.concat(st.sent[s.id] || []).map(function (f) {
+      return { t: f[0], icon: ICONS[f[1]], iconStyle: 'color: ' + ICON_COLORS[f[1]] + '; font-weight: 700', text: f[2],
+        textStyle: f[1] === 'you' ? 'color: var(--muted); font-style: italic' : (f[1] === 'wait' ? 'color: var(--warn)' : 'color: var(--text)') };
+    });
+
+    var counts = { needs: 0, working: 0, done: 0, alerts: 0 };
+    live.forEach(function (a) { if (counts[a.state] !== undefined) counts[a.state] += 1; if (a.health) counts.alerts += 1; });
+    var checkedIds = Object.keys(st.checked);
     var tabDefs = [['activity', 'Activity'], ['changes', 'Changes'], ['pr', 'Pull request']];
     var viewBtn = function (on) { return 'min-height: 34px; padding: 0 14px; border-radius: 7px; border: none; font-weight: 600; background: ' + (on ? 'var(--seg-on)' : 'transparent') + '; color: ' + (on ? 'var(--text)' : 'var(--muted)'); };
+
+    var wsAgents = st.ws ? scoped : [];
+    var wsPr = prOf(wsAgents);
+    var wsAdd = sum(wsAgents, 'add');
+
+    var repoKeys = repoNames.filter(function (n) { return n !== 'all'; });
+    var allFolded = repoKeys.every(function (n) { return st.folded[n]; });
+
     var themeAttr = st.theme === 'system' ? (st.systemLight ? 'light' : 'dark') : st.theme;
     var segBtn = function (on) { return 'min-height: 34px; padding: 0 12px; border-radius: 7px; border: none; font-size: 13px; font-weight: 600; background: ' + (on ? 'var(--seg-on)' : 'transparent') + '; color: ' + (on ? 'var(--text)' : 'var(--muted)') + '; box-shadow: ' + (on ? '0 0 0 1px var(--line)' : 'none'); };
-    var allFolded = repoList.length > 0 && repoList.every(function (r) { return st.folded[r.root]; });
-
-    var formRepo = repoList.filter(function (r) { return key(r.root) === key(st.formRepo); })[0];
-    var formRepoName = formRepo ? formRepo.name : String(st.formRepo || '').split(/[\\/]/).pop();
-    var slug = st.formName.trim().replace(/\s+/g, '-');
-    var wsRepo = repoList.filter(function (r) { return key(r.root) === key(st.repo); })[0];
-    var wsTree = wsRepo && wsRepo.worktrees.filter(function (w) { return w.branch === st.ws; })[0];
-    var wsAgents = st.ws ? scoped : [];
-    var wsPr = wsTree && wsTree.pr;
-    var p = sel && sel.pending;
-    var cmds = (sel && st.commands[sel.id]) || [];
 
     return {
       theme: {
@@ -896,23 +740,8 @@ class Component extends DCLogic {
           return { label: o[1], pressed: String(on), style: segBtn(on), pick: function () { self.remember({ theme: o[0] }); } };
         })
       },
-      conn: {
-        down: st.conn !== 'live' || Boolean(data.error),
-        label: st.conn === 'down' ? 'Server unreachable: is the cockpit still running?' : st.conn === 'connecting' ? 'Connecting…' : 'Session list failed: ' + data.error
-      },
-      toast: { show: Boolean(st.toast), text: st.toast ? st.toast.text : '', style: 'position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 10; max-width: min(640px, calc(100vw - 32px)); padding: 12px 16px; border-radius: 10px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,0.25); background: ' + (st.toast && st.toast.isError ? 'var(--bad)' : 'var(--text)') + '; color: var(--bg)' },
-      empty: live.length === 0 && st.conn === 'live',
-      newAgent: function () {
-        var root = st.repo !== 'all' ? st.repo : (repoList[0] && repoList[0].root);
-        if (!root) { self.toast('Add a repository first, with + Add repository.', true); return; }
-        self.openForm(root, null, true);
-      },
-      addRepo: function () {
-        var path = window.prompt('Path to a git repository on this machine:');
-        if (path) self.post('add-repo', { path: path });
-      },
       detail: {
-        isCollapsed: Boolean(sel) && st.detailCollapsed, isOpen: Boolean(sel) && !st.detailCollapsed,
+        isCollapsed: st.detailCollapsed, isOpen: !st.detailCollapsed,
         toggle: function () { self.remember({ detailCollapsed: !self.state.detailCollapsed }); }
       },
       rail: {
@@ -921,59 +750,44 @@ class Component extends DCLogic {
         foldLabel: allFolded ? 'Expand all' : 'Collapse all',
         foldAll: function () {
           var f = {};
-          if (!allFolded) repoList.forEach(function (r) { f[r.root] = true; });
+          if (!allFolded) repoKeys.forEach(function (n) { f[n] = true; });
           self.remember({ folded: f });
         }
       },
       form: {
-        open: st.formOpen,
-        title: (st.formWorktree ? 'New workstream in ' : 'New agent in ') + formRepoName + (st.formPath && !st.formWorktree ? ' ⎇ ' + (st.ws || '') : ''),
-        blurb: st.formWorktree ? 'Creates a git worktree on its own branch, so its agents never collide with other work in this repo, then starts an agent in it.' : 'Starts a background agent in ' + (st.formPath || st.formRepo) + '.',
-        name: st.formName, task: st.formTask, worktree: st.formWorktree,
-        base: st.formBase, model: st.formModel, mode: st.formMode,
-        // Claude Code's worktrees start from the repo's current branch.
-        bases: [{ value: 'current', label: 'the current branch' }],
-        models: MODELS.map(function (m) { return { value: m[0], label: m[1], selected: m[0] === st.formModel }; }),
-        modes: MODES.map(function (m) { return { value: m[0], label: m[1], selected: m[0] === st.formMode }; }),
-        submitLabel: st.formWorktree ? 'Create workstream' : 'Start agent',
-        preview: st.formWorktree
-          ? (slug ? 'claude --bg -w ' + slug + (st.formModel ? ' --model ' + st.formModel : '') + ' --permission-mode ' + st.formMode + ' -- "' + (st.formTask || '…') + '"' : 'Name the workstream to see the worktree and command it will create.')
-          : 'claude --bg' + (st.formModel ? ' --model ' + st.formModel : '') + ' --permission-mode ' + st.formMode + ' -- "' + (st.formTask || '…') + '"',
+        open: Boolean(st.formRepo), repo: st.formRepo || '',
+        name: st.formName, base: st.formBase, model: st.formModel, mode: st.formMode, task: st.formTask,
+        preview: st.formName.trim()
+          ? 'git worktree → ' + this.wsPath(st.formRepo || '', st.formName.trim().replace(/\s+/g, '-')) + '\nclaude --bg -w ' + st.formName.trim().replace(/\s+/g, '-') + ' --model "' + st.formModel + '" --permission-mode ' + st.formMode + ' -- "' + (st.formTask || '…') + '"'
+          : 'Name the workstream to see the worktree and command it will create.',
         typedName: function (e) { self.setState({ formName: e.target.value }); },
         typedTask: function (e) { self.setState({ formTask: e.target.value }); },
         pickBase: function (e) { self.setState({ formBase: e.target.value }); },
         pickModel: function (e) { self.setState({ formModel: e.target.value }); },
         pickMode: function (e) { self.setState({ formMode: e.target.value }); },
-        toggleWorktree: function (e) { self.setState({ formWorktree: e.target.checked }); },
-        create: function (e) { if (e && e.preventDefault) e.preventDefault(); self.launch(); },
-        cancel: function () { self.setState({ formOpen: false }); }
+        create: function (e) { self.createWorkstream(e); },
+        cancel: function () { self.setState({ formRepo: null }); }
       },
       wsHead: {
-        show: Boolean(st.ws && wsTree),
-        name: st.ws || '', repo: wsRepo ? wsRepo.name : '',
+        show: Boolean(st.ws) && wsAgents.length > 0,
+        name: st.ws || '', repo: st.repo,
         base: (wsAgents[0] && wsAgents[0].base) || 'main',
-        path: wsTree ? wsTree.path : '',
-        dot: dot(wsAgents.length ? worstOf(wsAgents) : 'idle', 10),
-        add: String(sum(wsAgents, 'add')), del: String(sum(wsAgents, 'del')), files: String(sum(wsAgents, 'files')),
-        ahead: String((wsAgents[0] && wsAgents[0].ahead) || 0), behind: String((wsAgents[0] && wsAgents[0].behind) || 0),
+        path: wsAgents[0] ? this.wsPath(st.repo, st.ws || '') : '',
+        dot: dot(worstOf(wsAgents.length ? wsAgents : [{ state: 'idle' }]), 10),
+        add: String(wsAdd), del: String(sum(wsAgents, 'del')), files: String(sum(wsAgents, 'files')),
+        ahead: String(Math.max(wsAdd > 0 ? 1 : 0, Math.round(wsAdd / 40))), behind: st.ws === 'feat/i18n' ? '7' : '0',
         agents: wsAgents.length === 1 ? '1 agent' : wsAgents.length + ' agents',
-        pr: wsPr ? wsPr.title : 'no PR yet',
+        pr: wsPr ? '#' + wsPr.num + (wsPr.mergeable ? ' ready to merge' : ' open') : 'no PR yet',
         prStyle: 'color: ' + (wsPr ? (wsPr.mergeable ? 'var(--ok)' : 'var(--warn)') : 'var(--muted)'),
-        prAction: wsPr ? 'Open PR #' + wsPr.num : 'Ask for a PR',
-        addAgent: function () { self.openForm(wsRepo.root, wsTree.path, false); },
-        openEditor: function () { self.post('open-editor', { path: wsTree.path }); },
-        prDo: function () {
-          if (wsPr) { window.open(wsPr.url, '_blank', 'noopener'); return; }
-          if (!wsAgents[0]) { self.toast('No agent in this workstream to ask.', true); return; }
-          self.post('send', { id: wsAgents[0].id, text: 'Push this branch and open a pull request for it with gh pr create.' });
-        },
-        remove: function () { self.removeWorktree(wsRepo.root, wsTree); }
+        prAction: wsPr ? 'Open PR #' + wsPr.num : 'Create PR'
       },
-      fleet: { total: String(data.totals.total), needs: String(data.totals.needs), working: String(data.totals.working), done: String(data.totals.done), alerts: String(data.totals.alerts), cost: money(data.totals.cost) },
+      fleet: { total: String(live.length), needs: String(counts.needs), working: String(counts.working), done: String(counts.done), alerts: String(counts.alerts) },
       repos: repos,
-      scopeLabel: st.repo === 'all' ? 'all repositories' : ((wsRepo ? wsRepo.name : '') + (st.ws ? ' ⎇ ' + st.ws : ' · all workstreams')),
-      agents: agents, lanes: lanes, needs: needs, hasNeeds: needs.length > 0,
-      waitedTotal: Math.round(waitedMinutes) + ' min',
+      scopeLabel: st.repo === 'all' ? 'all repositories' : (st.ws ? st.repo + ' ⎇ ' + st.ws : st.repo + ' · all workstreams'),
+      agents: agents,
+      lanes: lanes,
+      needs: needs,
+      hasNeeds: needs.length > 0,
       views: {
         isFleet: st.view === 'fleet', isCards: st.view === 'cards', isTimeline: st.view === 'timeline',
         fleetPressed: String(st.view === 'fleet'), cardsPressed: String(st.view === 'cards'), timelinePressed: String(st.view === 'timeline'),
@@ -984,20 +798,19 @@ class Component extends DCLogic {
       },
       hasChecked: checkedIds.length > 0,
       bulk: {
-        count: String(checkedIds.length), draft: st.bulkDraft,
+        count: String(checkedIds.length),
+        draft: st.bulkDraft,
         typed: function (e) { self.setState({ bulkDraft: e.target.value }); },
         send: function (e) {
           if (e && e.preventDefault) e.preventDefault();
           var text = (self.state.bulkDraft || '').trim();
           if (!text) return;
-          checkedIds.forEach(function (id) { self.post('send', { id: id, text: text }); });
-          self.setState({ bulkDraft: '' });
+          var sent = self.state.sent;
+          Object.keys(self.state.checked).forEach(function (id) { sent = Object.assign({}, sent); sent[id] = (sent[id] || []).concat([['now', 'sent', 'Sent to all selected: ' + text]]); });
+          self.setState({ sent: sent, bulkDraft: '' });
         },
-        stop: function () {
-          var chosen = live.filter(function (a) { return checkedIds.indexOf(a.id) >= 0; });
-          if (!window.confirm('Stop ' + chosen.length + ' agent(s)? Background sessions stop; the others are left alone.')) return;
-          chosen.forEach(function (a) { self.post('stop', { id: a.id, kind: a.kind }); });
-        },
+        pause: function () { self.setPaused(Object.keys(self.state.checked), true); },
+        resume: function () { self.setPaused(Object.keys(self.state.checked), false); },
         clear: function () { self.setState({ checked: {} }); }
       },
       tabs: tabDefs.map(function (t) {
@@ -1006,54 +819,36 @@ class Component extends DCLogic {
           style: 'min-height: 40px; padding: 0 12px; border: none; background: transparent; margin-bottom: -1px; font-weight: 600; color: ' + (on ? 'var(--text)' : 'var(--muted)') + '; border-bottom: 2px solid ' + (on ? 'var(--work)' : 'transparent') };
       }),
       tabIs: { activity: st.tab === 'activity', changes: st.tab === 'changes', pr: st.tab === 'pr' },
-      sel: !sel ? {} : {
-        repo: sel.repo, name: sel.name, path: sel.path, branch: sel.branch, model: sel.model, mode: sel.mode,
-        stateLabel: LABELS[sel.state], dot: dot(sel.health ? 'stuck' : sel.state, 10), pill: pill(sel.state),
-        hasHealth: Boolean(sel.health), health: sel.health || '',
-        usage: money(sel.cost) + ' spent · context ' + sel.ctx + '%' + (sel.effort ? ' · effort ' + sel.effort : '') + (sel.hasBeacon ? '' : ' · no beacon in this session'),
-        hasPending: Boolean(p),
-        kindLabel: p ? (p.kind === 'question' ? 'Asks you' : p.kind === 'edit' ? 'Wants to edit' : p.kind === 'local' ? 'Waiting in its terminal' : 'Wants to run') : '',
-        detail: p ? p.detail : '',
-        actions: this.actionsFor(sel),
-        noFeed: (sel.feed || []).length === 0,
-        feed: (sel.feed || []).slice().reverse().map(function (f) {
-          return { t: f[0], icon: ICONS[f[1]] || '·', iconStyle: 'color: ' + (ICON_COLORS[f[1]] || 'var(--muted)') + '; font-weight: 700', text: f[2],
-            textStyle: f[1] === 'you' ? 'color: var(--muted); font-style: italic' : (f[1] === 'wait' ? 'color: var(--warn)' : 'color: var(--text)') };
-        }),
-        add: String(sel.add), del: String(sel.del), files: String(sel.files),
-        fileList: (sel.fileList || []).map(function (f) { return { path: f[0], add: String(f[1]), del: String(f[2]) }; }),
-        hasPr: Boolean(sel.pr), noPr: !sel.pr,
-        prTitle: sel.pr ? sel.pr.title : '', prUrl: sel.pr ? sel.pr.url : '#',
-        checks: sel.pr ? sel.pr.checks.map(function (c) { var good = c[1] === 'pass'; return { name: c[0], icon: good ? '✓' : c[1] === 'pending' ? '…' : '✗', style: 'font-weight: 700; color: ' + (good ? 'var(--ok)' : c[1] === 'pending' ? 'var(--warn)' : 'var(--bad)') }; }) : [],
-        reviews: sel.pr ? sel.pr.reviews : '',
-        mergeLabel: sel.pr && sel.pr.mergeable ? 'Merge (squash)' : 'Merge (not ready)',
-        mergeStyle: sel.pr && sel.pr.mergeable ? 'min-height: 40px; padding: 0 14px; border-radius: 8px; border: none; background: var(--ok); color: var(--on-ok); font-weight: 600' : 'min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--edge); background: transparent; color: var(--faint)',
-        merge: function () {
-          if (!sel.pr || !sel.pr.mergeable) { self.toast('This PR is not ready to merge.', true); return; }
-          if (window.confirm('Squash-merge ' + sel.pr.title + ' and delete its branch?')) self.post('merge', { root: sel.repoRoot, number: sel.pr.num });
-        },
-        askPr: function () { self.post('send', { id: sel.id, text: 'Push this branch and open a pull request for it with gh pr create.' }); },
-        openEditor: function () { self.post('open-editor', { path: sel.path }); },
-        jump: function () { self.post('jump', { id: sel.id, kind: sel.kind, pid: sel.pid, path: sel.path }); },
-        stop: function () { if (window.confirm('Stop ' + sel.repo + ' · ' + sel.name + '?')) self.post('stop', { id: sel.id, kind: sel.kind }); },
-        commands: cmds.map(function (c) { return { value: '/' + c.name, label: c.description }; }),
-        placeholder: !sel.canSteer ? 'This session can\'t receive from the cockpit yet' : p && p.kind === 'question' ? 'Type an answer…' : 'Send a prompt, or / for commands',
-        cantSteer: !sel.canSteer,
-        hasQueued: sel.queued > 0,
-        queuedNote: sel.queued === 1 ? 'Waiting for ' + sel.name + ' to pick up your message…' : 'Waiting for ' + sel.name + ' to pick up ' + sel.queued + ' messages…',
-        sendStyle: 'min-height: 44px; padding: 0 16px; border-radius: 8px; border: none; font-weight: 600; background: ' + (sel.canSteer ? 'var(--work)' : 'var(--chip)') + '; color: ' + (sel.canSteer ? 'var(--on-work)' : 'var(--faint)')
+      sel: {
+        repo: s.repo, name: s.name, path: s.path, branch: s.branch, model: s.model, mode: s.mode,
+        stateLabel: LABELS[s.state], dot: dot(s.health ? 'stuck' : s.state, 10), pill: pill(s.state),
+        hasHealth: Boolean(s.health), health: s.health || '',
+        cost: money(s.cost), cap: money(s.cap),
+        capBar: 'display: block; height: 100%; width: ' + Math.min(100, s.cost / s.cap * 100) + '%; background: ' + (s.cost / s.cap >= 0.9 ? 'var(--bad)' : 'var(--work)'),
+        hasPending: Boolean(s.pending),
+        kindLabel: s.pending ? (s.pending.kind === 'question' ? 'Asks you' : (s.pending.kind === 'edit' ? 'Wants to edit' : 'Wants to run')) : '',
+        detail: s.pending ? s.pending.detail : '',
+        actions: this.actionsFor(s),
+        feed: feed,
+        add: String(s.add), del: String(s.del), files: String(s.files),
+        fileList: s.fileList.map(function (f) { return { path: f[0], add: String(f[1]), del: String(f[2]) }; }),
+        hasPr: Boolean(s.pr), noPr: !s.pr,
+        prTitle: s.pr ? s.pr.title : '',
+        checks: s.pr ? s.pr.checks.map(function (c) { var ok = c[1] === 'pass'; return { name: c[0], icon: ok ? '✓' : '✗', style: 'font-weight: 700; color: ' + (ok ? 'var(--ok)' : 'var(--bad)') }; }) : [],
+        reviews: s.pr ? s.pr.reviews : '',
+        mergeLabel: s.pr && s.pr.mergeable ? 'Merge' : 'Merge (blocked by CI)',
+        mergeStyle: s.pr && s.pr.mergeable ? 'min-height: 40px; padding: 0 14px; border-radius: 8px; border: none; background: var(--ok); color: var(--on-ok); font-weight: 600' : 'min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--edge); background: transparent; color: var(--faint)',
+        placeholder: s.pending && s.pending.kind === 'question' ? 'Type an answer…' : 'Send a prompt, e.g. "then open a PR"'
       },
+      pauseLabel: st.paused[s.id] ? 'Resume' : 'Pause',
+      pauseSel: function () { self.setPaused([s.id], !self.state.paused[s.id]); },
       draft: st.draft,
-      cmd: this.commandMenu(sel),
-      typed: function (e) { self.setState({ draft: e.target.value, cmdClosed: false, cmdIndex: 0 }); },
+      typed: function (e) { self.setState({ draft: e.target.value }); },
       send: function (e) {
         if (e && e.preventDefault) e.preventDefault();
         var text = (self.state.draft || '').trim();
-        if (!text || !sel) return;
-        if (!sel.canSteer) { self.toast(sel.name + ' runs an older Tower plugin and can\'t receive from here. Restart it, then send again.', true); return; }
-        var q =sel.pending && sel.pending.kind === 'question' && !text.startsWith('/');
-        self.post(q ? 'answer' : 'send', q ? { id: sel.id, pendingId: sel.pending.id, text: text } : { id: sel.id, text: text });
-        self.setState({ draft: '' });
+        if (!text) return;
+        self.setState({ sent: self.note(s.id, 'Sent: ' + text), draft: '' });
       }
     };
   }

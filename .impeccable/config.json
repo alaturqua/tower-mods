@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "plugins/tower/cockpit/web/logic.js"
+        ],
+        "createdAt": "2026-10-06T20:02:51.599Z",
+        "reason": "Claude, per the user's approval of the cockpit mockup: the Cards view's 3px state-colored top stripe on rounded cards is the approved design"
+      }
+    ]
+  }
+}
