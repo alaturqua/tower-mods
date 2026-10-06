@@ -41,10 +41,20 @@
       <a href="#install">Install</a>
     </nav>
     <a class="rail-link" href="https://github.com/alaturqua/tower-mods">GitHub</a>
-    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch to light mode">
-      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
-      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
-    </button>
+    <div class="theme-switch" role="group" aria-label="Theme">
+      <button type="button" data-choice="system" aria-pressed="true" title="Follow the system">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+        <span>System</span>
+      </button>
+      <button type="button" data-choice="light" aria-pressed="false" title="Light">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <span>Light</span>
+      </button>
+      <button type="button" data-choice="dark" aria-pressed="false" title="Dark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+        <span>Dark</span>
+      </button>
+    </div>
   </header>
 
   <main id="main">
@@ -119,8 +129,9 @@
       <h2 id="cockpit-title">Next: the cockpit</h2>
       <p class="sub">A local web dashboard for when one pane is not enough: every repo and its workstreams on the left, the fleet in the middle, the selected agent's live activity on the right.</p>
       <figure class="demo">
-        <img src="images/cockpit-demo.gif" width="1200" height="491" loading="lazy" alt="The cockpit mockup: approving a git push and answering a question from the Needs you cards, switching the fleet between Table, Cards and Timeline views, filling in a new workstream, and collapsing the repository rail.">
-        <figcaption>The clickable mockup, with sample data: approve, answer, switch views, start a workstream, fold the rail.</figcaption>
+        <img class="demo-dark" src="images/cockpit-demo-dark.gif" width="1200" height="491" loading="lazy" alt="The cockpit mockup in dark mode: approving a git push and answering a question from the Needs you cards, switching between Table, Cards and Timeline views, creating a workstream, and folding the repository rail and the agent panel.">
+        <img class="demo-light" src="images/cockpit-demo-light.gif" width="1200" height="491" loading="lazy" alt="The cockpit mockup in light mode: approving a git push and answering a question from the Needs you cards, switching between Table, Cards and Timeline views, creating a workstream, and folding the repository rail and the agent panel.">
+        <figcaption>The clickable mockup, with sample data: approve, answer, switch views, start a workstream, fold the panels. It follows your theme, like this page.</figcaption>
       </figure>
       <ul class="features">
         <li><b>Workstreams.</b> Start a git worktree per line of work, with its own branch and agents, and watch each one.</li>
@@ -150,29 +161,34 @@
 
   <script>
     (function () {
+      // Three choices, remembered: System follows the OS as it changes, Light and Dark stay put.
       var root = document.documentElement
-      var toggle = document.getElementById('theme-toggle')
       var meta = document.querySelector('meta[name="theme-color"]')
-      function show(theme) {
+      var buttons = document.querySelectorAll('.theme-switch button')
+      var media = window.matchMedia ? matchMedia('(prefers-color-scheme: light)') : null
+      function choice() {
+        var saved = null
+        try { saved = localStorage.getItem('tower-theme') } catch (e) {}
+        return saved === 'light' || saved === 'dark' ? saved : 'system'
+      }
+      function apply() {
+        var picked = choice()
+        var theme = picked === 'system' ? (media && media.matches ? 'light' : 'dark') : picked
         root.dataset.theme = theme
-        toggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode')
         meta.setAttribute('content', theme === 'dark' ? '#0E1116' : '#F6F7F9')
+        buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.choice === picked)) })
       }
-      function saved() {
-        try { return localStorage.getItem('tower-theme') } catch (e) { return null }
-      }
-      show(root.dataset.theme === 'light' ? 'light' : 'dark')
-      toggle.addEventListener('click', function () {
-        var next = root.dataset.theme === 'dark' ? 'light' : 'dark'
-        try { localStorage.setItem('tower-theme', next) } catch (e) {}
-        show(next)
-      })
-      // Until you pick one, the page follows the system as it changes.
-      if (window.matchMedia) {
-        matchMedia('(prefers-color-scheme: light)').addEventListener('change', function (e) {
-          if (!saved()) show(e.matches ? 'light' : 'dark')
+      buttons.forEach(function (b) {
+        b.addEventListener('click', function () {
+          try {
+            if (b.dataset.choice === 'system') localStorage.removeItem('tower-theme')
+            else localStorage.setItem('tower-theme', b.dataset.choice)
+          } catch (e) {}
+          apply()
         })
-      }
+      })
+      if (media) media.addEventListener('change', apply)
+      apply()
     })()
 
     document.querySelectorAll('button.copy').forEach(function (btn) {

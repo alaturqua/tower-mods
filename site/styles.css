@@ -153,13 +153,17 @@ h2 { margin: 0 0 12px; font-size: clamp(28px, 3.4vw, 38px); line-height: 1.15; l
 
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
-.theme-toggle { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--edge); background: var(--panel); color: var(--text); cursor: pointer; }
-.theme-toggle:hover { background: var(--raise); }
-.theme-toggle svg { width: 18px; height: 18px; }
-/* The icon shows the theme you are in: a moon in dark, a sun in light. */
-.theme-toggle .sun { display: none; }
-:root[data-theme="light"] .theme-toggle .sun { display: block; }
-:root[data-theme="light"] .theme-toggle .moon { display: none; }
+.theme-switch { display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--raise); border: 1px solid var(--line); }
+.theme-switch button { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 10px; border: none; border-radius: 7px; background: transparent; color: var(--muted); font: inherit; font-size: 14px; cursor: pointer; }
+.theme-switch button:hover { color: var(--text); }
+.theme-switch button[aria-pressed="true"] { background: var(--panel); color: var(--text); box-shadow: 0 0 0 1px var(--line); }
+.theme-switch svg { width: 16px; height: 16px; }
+@media (max-width: 640px) { .theme-switch span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
+
+/* The demo GIF comes in both themes; the page shows the one it is in. */
+.demo-light { display: none !important; }
+:root[data-theme="light"] .demo-light { display: block !important; }
+:root[data-theme="light"] .demo-dark { display: none !important; }
 
 .demo { margin: 0 0 32px; }
 .demo img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); }
