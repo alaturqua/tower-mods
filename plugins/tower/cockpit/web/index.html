@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tower cockpit</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <style>
+    html, body { margin: 0; background: #0E1116; }
+    @media (prefers-color-scheme: light) { html, body { background: #F6F7F9; } }
+    #app:empty::before { content: "Loading the cockpit…"; display: block; padding: 24px; color: #9AA4B2; font: 15px system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script src="dc-lite.js"></script>
+  <script>DCLite.mount(document.getElementById('app'), 'cockpit.dc.html')</script>
+</body>
+</html>

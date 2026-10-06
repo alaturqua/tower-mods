@@ -163,7 +163,8 @@ export function reposOf(agents, known) {
   }
   for (const a of agents) {
     const repo = add(a.repoRoot, a.repo)
-    if (!repo.worktrees.has(a.branch)) repo.worktrees.set(a.branch, { branch: a.branch, path: a.path })
+    // A folder that is not a git repository has no workstreams, only its agents.
+    if (a.branch !== '—' && !repo.worktrees.has(a.branch)) repo.worktrees.set(a.branch, { branch: a.branch, path: a.path })
   }
   return [...byRoot.values()]
     .map(r => ({ root: r.root, name: r.name, worktrees: [...r.worktrees.values()] }))
