@@ -110,18 +110,47 @@
       </div>
     </section>
 
-    <section id="answers" class="band split" aria-labelledby="answers-title">
-      <div>
-        <h2 id="answers-title">Answer from the tower, not the terminal</h2>
-        <p>Sessions the tower launched send their permission prompts and questions to the tower instead of a dialog nobody is looking at. The agent is told to wait; your Allow arrives as its next prompt, and that exact call runs once.</p>
-        <p>Sessions you started by hand keep their own dialogs: the tower shows what they wait on and takes you there. Want every session steered from the tower? Set <code>remoteAnswers</code> to <code>always</code>.</p>
-      </div>
-      <ol class="steps">
-        <li><b>Agent asks</b> to run <code>git push origin main</code></li>
-        <li><b>The plugin</b> holds the call and flags the session</li>
-        <li><b>You press Allow</b> in the tower</li>
-        <li><b>The agent retries</b>, and that call alone goes through</li>
+    <section id="answers" class="band" aria-labelledby="answers-title">
+      <h2 id="answers-title">Answer from the tower, not the terminal</h2>
+      <p class="sub">When a session the tower launched wants permission, the question comes to you in the tower, not to a terminal nobody is watching.</p>
+
+      <ol class="flow" aria-label="How a permission is answered from the tower">
+        <li class="flow-step">
+          <p class="flow-who"><span class="dot work"></span>Agent in <b>api</b></p>
+          <div class="flow-shot"><code>Bash  git push origin main</code></div>
+          <p class="flow-say">Asks to run a command.</p>
+        </li>
+        <li class="flow-step">
+          <p class="flow-who"><span class="dot warn"></span>Held</p>
+          <div class="flow-shot flow-shot-warn">Waiting for approval in the tower</div>
+          <p class="flow-say">Nothing runs. The tower shows <b>1 needs you</b>.</p>
+        </li>
+        <li class="flow-step">
+          <p class="flow-who"><span class="dot you"></span>You, in the tower</p>
+          <div class="flow-shot flow-buttons"><span class="fake-btn fake-primary">Allow</span><span class="fake-btn">Deny</span></div>
+          <p class="flow-say">One keypress, from wherever you are.</p>
+        </li>
+        <li class="flow-step">
+          <p class="flow-who"><span class="dot ok"></span>Runs once</p>
+          <div class="flow-shot flow-shot-ok">✓ git push origin main</div>
+          <p class="flow-say">The agent retries; that exact call goes through, nothing else.</p>
+        </li>
       </ol>
+
+      <div class="modes">
+        <div class="mode">
+          <h3>Launched by the tower</h3>
+          <p>Permission prompts and questions come to the tower.</p>
+        </div>
+        <div class="mode">
+          <h3>Started by hand</h3>
+          <p>Keeps its own dialog. The tower shows what it waits on, and <b>Jump</b> takes you there.</p>
+        </div>
+        <div class="mode">
+          <h3>Want every session?</h3>
+          <p>Set <code>remoteAnswers</code> to <code>always</code> in <code>/config</code>.</p>
+        </div>
+      </div>
     </section>
 
     <section id="cockpit" class="band" aria-labelledby="cockpit-title">

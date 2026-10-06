@@ -130,11 +130,31 @@ h2 { margin: 0 0 12px; font-size: clamp(28px, 3.4vw, 38px); line-height: 1.15; l
 .card .tag.warn { color: var(--warn); }
 .card .tag.ok { color: var(--ok); }
 
-.split { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 40px; align-items: start; }
-.split p { color: var(--text2); }
-.steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 10px; }
-.steps li { counter-increment: step; display: grid; grid-template-columns: 36px 1fr; gap: 12px; align-items: baseline; padding: 14px 16px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
-.steps li::before { content: counter(step); font-family: var(--mono); color: var(--warn); font-weight: 600; }
+/* The answer flow: four steps drawn as small pieces of UI, joined by arrows when they sit in a row. */
+.flow { margin: 0 0 28px; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 28px; }
+.flow-step { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); }
+.flow-step + .flow-step::before { content: "→"; position: absolute; left: -22px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 18px; }
+@media (max-width: 1000px) { .flow-step + .flow-step::before { content: none; } }
+.flow-who { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--text); }
+.flow-who b { font-family: var(--mono); font-weight: 500; }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.dot.work { background: var(--work); }
+.dot.warn { background: var(--warn); }
+.dot.ok { background: var(--ok); }
+.dot.you { background: var(--text); }
+.flow-shot { min-height: 52px; display: flex; align-items: center; padding: 10px 12px; border-radius: 10px; background: var(--sunk); border: 1px solid var(--line); font-family: var(--mono); font-size: 13px; color: var(--text); overflow-wrap: anywhere; }
+.flow-shot code { background: none; padding: 0; font-size: inherit; }
+.flow-shot-warn { color: var(--warn); border-color: var(--warn); }
+.flow-shot-ok { color: var(--ok); border-color: var(--ok); }
+.flow-buttons { gap: 8px; font-family: var(--sans); }
+.fake-btn { display: inline-flex; align-items: center; min-height: 32px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--edge); font-size: 14px; font-weight: 600; }
+.fake-primary { background: var(--warn); border-color: var(--warn); color: var(--on-warn); }
+.flow-say { margin: 0; color: var(--text2); font-size: 15px; line-height: 1.5; }
+
+.modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; }
+.mode { padding: 16px 18px; border-radius: 12px; border: 1px dashed var(--edge); }
+.mode h3 { margin: 0 0 6px; font-size: 16px; }
+.mode p { margin: 0; color: var(--text2); font-size: 15px; }
 
 .features { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px 32px; }
 .features li { padding: 12px 0; border-bottom: 1px solid var(--line); color: var(--text2); }
