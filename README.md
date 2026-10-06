@@ -5,8 +5,8 @@ A Claude Code plugin for running many sessions across many repos from one place,
 Site: **[alaturqua.github.io/tower-mods](https://alaturqua.github.io/tower-mods/)**
 
 <picture>
-  <source media="(prefers-color-scheme: light)" srcset="site/images/approve-light.gif">
-  <img src="site/images/approve-dark.gif" alt="The cockpit mockup's Needs you cards: allowing an agent's git push and answering another agent's question">
+  <source media="(prefers-color-scheme: light)" srcset="site/images/approve-light.webp">
+  <img src="site/images/approve-dark.webp" alt="The cockpit mockup's Needs you cards: allowing an agent's git push and answering another agent's question">
 </picture>
 
 *Above: the cockpit, the web dashboard in design, as a clickable mockup with sample data. More clips (views, workstreams, panels) are on the [site](https://alaturqua.github.io/tower-mods/#cockpit). What ships today is the `/tower` pane below.*

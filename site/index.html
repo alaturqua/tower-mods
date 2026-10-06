@@ -164,7 +164,7 @@
           <button type="button" role="tab" aria-selected="false" aria-controls="player-video" data-clip="workstream"><b>New workstream</b><span>A worktree and its agent</span></button>
           <button type="button" role="tab" aria-selected="false" aria-controls="player-video" data-clip="panels"><b>Fold the panels</b><span>Repos, rail, agent panel</span></button>
         </div>
-        <video id="player-video" class="player-video" autoplay muted loop playsinline preload="metadata" width="1030" height="340" aria-describedby="player-caption"></video>
+        <img id="player-video" class="player-video" width="1030" height="340" alt="" aria-describedby="player-caption">
         <p id="player-caption" class="player-caption"></p>
       </div>
       <ul class="features">
@@ -231,25 +231,27 @@
       var video = document.getElementById('player-video')
       var caption = document.getElementById('player-caption')
       var tabs = document.querySelectorAll('.player-tabs button')
-      var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches
       var captions = {
         approve: 'A git push and a question wait on you. Allow the first, answer the second; both agents go back to work.',
         views: 'The same fleet three ways: a dense table, scannable cards, and a timeline of who worked and who waited.',
         workstream: 'New workstream in api: name it, give it a task, and it gets its own git worktree, branch and agent.',
         panels: 'Fold the repositories, shrink the rail to dots, tuck the agent panel away, and bring it all back.',
       }
+      var alts = {
+        approve: 'The Needs you cards: allowing a git push, then answering a question with staging.',
+        views: 'The fleet switching from Table to Cards to Timeline and back.',
+        workstream: 'The New workstream form filled in for api, then the new workstream with its agent.',
+        panels: 'The repositories folding, the rail shrinking to dots, the agent panel folding, then all opening again.',
+      }
       var clip = 'approve'
       function show() {
         var theme = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
-        var src = 'media/' + clip + '-' + theme + '.mp4'
-        if (video.getAttribute('src') !== src) {
-          video.setAttribute('src', src)
-          if (!still) video.play().catch(function () {})
-        }
+        var src = 'images/' + clip + '-' + theme + '.webp'
+        if (video.getAttribute('src') !== src) video.setAttribute('src', src)
+        video.setAttribute('alt', alts[clip])
         caption.textContent = captions[clip] + ' Sample data, in the clickable mockup.'
         tabs.forEach(function (t) { t.setAttribute('aria-selected', String(t.dataset.clip === clip)) })
       }
-      if (still) { video.removeAttribute('autoplay'); video.controls = true }
       tabs.forEach(function (t) { t.addEventListener('click', function () { clip = t.dataset.clip; show() }) })
       document.addEventListener('tower-theme', show)
       show()
