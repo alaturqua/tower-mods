@@ -68,6 +68,30 @@ test('a prompt the cockpit appends to the inbox is submitted once', async ($, on
   expect(host.lastStatus().activity.at(-1)).toMatchObject({ kind: 'sent', text: 'run the tests' })
 })
 
+test('a slash command from the tower runs as a command, not as text', async ($, on) => {
+  const host = stubHost(on)
+  const ran: { command: string; args: string }[] = []
+  on('command.run', (_$, e) => { ran.push({ command: e.command, args: e.args }); return { text: '' } })
+  on('session.receive', (_$, e) => ({ text: e.text }))
+
+  await $.session.receive({ origin: { kind: 'peer' }, text: tower({ kind: 'prompt', text: '/model sonnet' }) })
+  await new Promise(resolve => setTimeout(() => resolve(undefined), 20))
+
+  expect(ran).toEqual([{ command: 'model', args: 'sonnet' }])
+  expect(host.prompts.length).toBe(0)
+})
+
+test('the session publishes its slash commands for the cockpit to suggest', async ($, on) => {
+  const host = stubHost(on)
+  on('session.start', () => ({ cwd: 'D:/Projects/dbt-platform' }))
+  on('command.list', () => ({ value: [{ name: 'compact', description: 'Compact the conversation', source: 'builtin' }] }) as never)
+  await $.session.start({ source: 'startup', cwd: 'D:/Projects/dbt-platform' } as never)
+  await new Promise(resolve => setTimeout(() => resolve(undefined), 20))
+
+  const file = host.writes.find(w => /commands[\\/]sess-1\.json$/.test(w.path))
+  expect(JSON.parse(file?.text ?? '[]')).toEqual([{ name: 'compact', description: 'Compact the conversation' }])
+})
+
 test('the status file carries usage, activity, and a loop of the same failing call', async ($, on) => {
   const host = stubHost(on)
   on('tool.call', () => ({ isError: true, result: 'exit 1', text: 'exit 1' }) as never)

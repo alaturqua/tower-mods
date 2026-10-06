@@ -226,9 +226,31 @@ async function answer($: $, msg: Extract<TowerMessage, { kind: 'answer' }>) {
   await report($, 'working')
 }
 
+// A slash command from the tower runs as if typed (`/compact`, `/model sonnet`); any other
+// text is a prompt. Never awaited: the command queues until the session is idle.
+function runCommand($: $, text: string) {
+  const [, command = '', args = ''] = /^\/(\S+)\s*([\s\S]*)$/.exec(text.trim()) ?? []
+  void $.command.run({ command, args } as never).catch(err => $.ui.log(`beacon: /${command} from the tower failed: ${String(err)}`))
+}
+
+// The session's slash commands, for the cockpit's send box to suggest; written once at start.
+async function publishCommands($: $) {
+  try {
+    const list = await $.command.list()
+    const commands = list.map(c => ({ name: c.name, description: c.description.slice(0, 120) }))
+    await $.fs.write(`${await towerDir($)}/commands/${await $.session.id()}.json`, JSON.stringify(commands))
+  } catch {
+    // Suggestions are a convenience; the commands still run when typed in full.
+  }
+}
+
 // One instruction from the tower, by message or by inbox line.
 async function obey($: $, msg: TowerMessage) {
-  if (msg.kind === 'prompt') {
+  if (msg.kind === 'prompt' && msg.text.trim().startsWith('/')) {
+    await note($, 'sent', msg.text.trim())
+    runCommand($, msg.text)
+    await report($)
+  } else if (msg.kind === 'prompt') {
     await note($, 'sent', msg.text)
     submit($, msg.text)
     await report($)
@@ -276,6 +298,7 @@ export const registerBeacon: Register = (on, options) => {
     isRemote = remoteAnswers === 'always' || (remoteAnswers === 'launched'
       && await $.fs.exists(`${await towerDir($)}/launched/${await $.session.id()}.json`).catch(() => false))
     void report($, 'idle')
+    void publishCommands($)
     if (inboxMs > 0) $.clock.every(inboxMs || INBOX_MS, () => { void checkInbox($) })
     return next(e)
   })
