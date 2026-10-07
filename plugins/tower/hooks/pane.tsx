@@ -11,7 +11,7 @@ type $ = EngineInterface
 const PANE = 'tower'
 const USAGE = 'Usage: /tower · /tower list · /tower send <session> <prompt> · /tower launch <repo path> <task> · /tower add <repo path>'
 const JUMP_PS = `$ok = (New-Object -ComObject WScript.Shell).AppActivate($env:TOWER_TITLE); if (-not $ok) { exit 1 }`
-const COCKPIT_PS = `Start-Process -WindowStyle Hidden -FilePath node -ArgumentList ('"' + $env:TOWER_SERVER + '"'), '--open'`
+const COCKPIT_PS = `Start-Process -WindowStyle Hidden -FilePath node -ArgumentList (@('"' + $env:TOWER_SERVER + '"') + ($env:TOWER_FLAGS -split ' ')) `
 // A session the tower starts is its own, not a child of the tower's.
 const CHILD_ENV = { CLAUDECODE: '', CLAUDE_CODE_SESSION_ID: '', CLAUDE_CODE_CHILD_SESSION: '', CLAUDE_PID: '' }
 
@@ -193,21 +193,28 @@ export const registerPane: Register = (on, options) => {
   // The /tower command. Polling waits until it is first used.
   on('session.start', { cwd: /(?:)/ }, async ($, e, next) => {
     await $.command.register({ name: 'tower', description: 'Watch and steer every running Claude Code session', argumentHint: '[list | send <session> <prompt> | launch <repo> <task> | add <repo>]' })
-    await $.command.register({ name: 'cockpit', description: 'Open the Tower cockpit, a web dashboard over every session, in your browser' })
+    await $.command.register({ name: 'cockpit', description: 'Open the Tower cockpit, a web dashboard over every session, in your browser', argumentHint: '[restart | stop]' })
     return next(e)
   })
 
   // The cockpit server outlives this session: started detached, it opens the browser itself,
   // and a second start just opens the one already running.
-  on('command.run', { command: 'cockpit' }, async $ => {
+  // /cockpit opens it; /cockpit restart replaces it (after an update); /cockpit stop stops it.
+  on('command.run', { command: 'cockpit' }, async ($, e) => {
     const server = `${$.plugin.root}/cockpit/server.mjs`
+    const verb = e.args.trim().toLowerCase()
+    if (verb === 'stop') {
+      const stopped = await $.process.run(['node', server, '--stop'], { timeoutMs: 10000 }).catch(err => ({ exitCode: -1, stdout: '', stderr: String(err) }))
+      return { text: stopped.exitCode === 0 ? stopped.stdout.trim() : `Couldn't stop the cockpit: ${stopped.stderr.trim().slice(0, 200)}` }
+    }
+    const flags = verb === 'restart' ? '--restart --open' : '--open'
     const isWindows = (await $.env.get('OS')) === 'Windows_NT'
     const argv = isWindows
       ? ['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', COCKPIT_PS]
-      : ['sh', '-c', 'nohup node "$TOWER_SERVER" --open >/dev/null 2>&1 &']
-    const ran = await $.process.run(argv, { env: { TOWER_SERVER: server }, timeoutMs: 15000 }).catch(err => ({ exitCode: -1, stdout: '', stderr: String(err) }))
-    if (ran.exitCode !== 0) return { text: `Couldn't start the cockpit (is Node.js 18+ installed?): ${ran.stderr.trim().slice(0, 200)}\nRun it yourself: node "${server}" --open` }
-    return { text: 'Opening the Tower cockpit in your browser. It keeps running after this session; the link it opened works until it stops.' }
+      : ['sh', '-c', 'nohup node "$TOWER_SERVER" $TOWER_FLAGS >/dev/null 2>&1 &']
+    const ran = await $.process.run(argv, { env: { TOWER_SERVER: server, TOWER_FLAGS: flags }, timeoutMs: 15000 }).catch(err => ({ exitCode: -1, stdout: '', stderr: String(err) }))
+    if (ran.exitCode !== 0) return { text: `Couldn't start the cockpit (is Node.js 18+ installed?): ${ran.stderr.trim().slice(0, 200)}\nRun it yourself: node "${server}" ${flags}` }
+    return { text: verb === 'restart' ? 'Restarting the Tower cockpit and opening it in your browser.' : 'Opening the Tower cockpit in your browser. It keeps running after this session; the link it opened works until it stops.' }
   })
 
   on('command.run', { command: 'tower' }, async ($, e) => {

@@ -68,3 +68,30 @@ test('an answer is appended for beacon, and a bad session id writes nothing', as
   assert.deepEqual({ ...JSON.parse(lines.at(-1)), at: undefined }, { v: 1, kind: 'answer', pendingId: 'p-1', allow: true, at: undefined })
   assert.equal((await post({ id: '../../evil', pendingId: 'p-1', allow: true })).status, 400)
 })
+
+test('--restart replaces the running cockpit, --stop stops it', async () => {
+  const own = mkdtempSync(join(tmpdir(), 'tower-life-'))
+  const port = 4900 + Math.floor(Math.random() * 90)
+  const env = { ...process.env, TOWER_HOME: own }
+  const cwd = join(import.meta.dirname, '..')
+  const up = child => new Promise((resolve, reject) => {
+    child.stdout.on('data', d => { if (/http:\S+/.test(String(d))) resolve() })
+    child.on('exit', code => reject(new Error(`exited ${code}`)))
+  })
+  const exited = child => new Promise(resolve => child.on('exit', resolve))
+  const info = () => JSON.parse(readFileSync(join(own, 'cockpit.json'), 'utf8'))
+  const first = spawn(process.execPath, ['server.mjs', '--port', String(port)], { cwd, env })
+  try {
+    await up(first)
+    assert.equal(info().pid, first.pid)
+    const second = spawn(process.execPath, ['server.mjs', '--port', String(port), '--restart'], { cwd, env })
+    await Promise.all([up(second), exited(first)])
+    assert.equal(info().pid, second.pid)
+    const stop = spawn(process.execPath, ['server.mjs', '--stop'], { cwd, env })
+    await Promise.all([exited(stop), exited(second)])
+    assert.throws(() => info(), 'cockpit.json is gone')
+  } finally {
+    first.kill()
+    rmSync(own, { recursive: true, force: true })
+  }
+})

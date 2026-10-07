@@ -19,6 +19,8 @@ Install it everywhere: every session then reports to the cockpit and can be stee
 
 Then type **`/cockpit`** in any session. It starts the cockpit in the background and opens your browser.
 
+After an update, `/cockpit` swaps a cockpit of an older version for the new one by itself. `/cockpit restart` replaces it on demand and `/cockpit stop` stops it; from a shell, `node plugins/tower/cockpit/server.mjs --restart` or `--stop`.
+
 Needs Node.js 18 or newer for the cockpit, and the GitHub CLI (`gh`) for pull requests. Mods draw nothing in the VS Code chat panel; for `/tower` and the status line, run Claude Code in a terminal (VS Code's integrated terminal works) or the desktop app's Code tab.
 
 ## The cockpit

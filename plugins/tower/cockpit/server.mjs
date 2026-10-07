@@ -4,7 +4,8 @@
 // Listens on 127.0.0.1 only. The URL it prints carries a one-time token; the browser
 // trades it for a cookie, and every data request needs that cookie.
 import { randomBytes, timingSafeEqual } from 'node:crypto'
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
+import { readFile, writeFile, mkdir, rm } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -16,6 +17,8 @@ import { laneOf, reposOf, toAgent, totalsOf } from './lib/model.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const argv = process.argv.slice(2)
+// A running cockpit of another version is replaced, so an update never leaves the old one up.
+const VERSION = JSON.parse(readFileSync(join(HERE, '..', '.claude-plugin', 'plugin.json'), 'utf8')).version
 const PORT = Number(argv[argv.indexOf('--port') + 1]) || Number(process.env.TOWER_COCKPIT_PORT) || 4747
 // The token outlives a restart, so an open cockpit tab keeps working; cockpit.json is the
 // user's own file, as private as the sessions it describes.
@@ -190,7 +193,23 @@ async function openBrowser(link) {
   else await run(process.platform === 'darwin' ? 'open' : 'xdg-open', [link])
 }
 
-const existing = await running()
+// `--stop` stops the running cockpit; `--restart` replaces it with this one.
+async function stopRunning(info) {
+  try { process.kill(info.pid) } catch { /* already gone */ }
+  for (let i = 0; i < 30 && await running(); i++) await new Promise(r => setTimeout(r, 100))
+  await rm(join(TOWER, 'cockpit.json'), { force: true })
+}
+
+let existing = await running()
+if (argv.includes('--stop')) {
+  if (existing) await stopRunning(existing)
+  console.log(existing ? 'Stopped the cockpit.' : 'The cockpit is not running.')
+  process.exit(0)
+}
+if (existing && (argv.includes('--restart') || existing.version !== VERSION)) {
+  await stopRunning(existing)
+  existing = null
+}
 if (existing) {
   console.log(existing.url)
   if (argv.includes('--open')) await openBrowser(existing.url)
@@ -200,7 +219,7 @@ if (existing) {
 server.listen(PORT, '127.0.0.1', async () => {
   const link = `http://127.0.0.1:${PORT}/?t=${TOKEN}`
   await mkdir(TOWER, { recursive: true })
-  await writeFile(join(TOWER, 'cockpit.json'), JSON.stringify({ port: PORT, pid: process.pid, url: link, startedAt: new Date().toISOString() }))
+  await writeFile(join(TOWER, 'cockpit.json'), JSON.stringify({ port: PORT, pid: process.pid, version: VERSION, url: link, startedAt: new Date().toISOString() }))
   await refresh().catch(() => {})
   console.log(link)
   if (argv.includes('--open')) await openBrowser(link)
