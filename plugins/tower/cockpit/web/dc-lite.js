@@ -125,19 +125,60 @@
     for (const { name, value } of Array.from(next.attributes)) if (live.getAttribute(name) !== value) live.setAttribute(name, value)
     live.__on = next.__on
     morphChildren(live, next)
-    // Form state lives in properties; the one being typed in is left to the person.
+    // Form state lives in properties. Typing writes the page's value first, so a value that
+    // differs from the box is the page's own change (a picked command) and wins.
     if ('checked' in next && live.checked !== next.checked) live.checked = next.checked
-    if ('value' in next && live !== document.activeElement && live.value !== next.value) live.value = next.value
+    if ('value' in next && live.value !== next.value) live.value = next.value
   }
 
+  // Children pair up by id when they have one (so an input keeps its focus when a menu
+  // opens before it), else by order and tag. Nodes with no partner are added or removed;
+  // a node is only moved when the order truly changed, since moving a node blurs it.
   function morphChildren(live, next) {
     const want = Array.from(next.childNodes)
     const have = Array.from(live.childNodes)
-    want.forEach((node, i) => {
-      if (i < have.length) morph(have[i], node)
-      else live.appendChild(node)
+    const idOf = node => (node.nodeType === Node.ELEMENT_NODE && node.id) || ''
+    const byId = new Map(have.filter(idOf).map(node => [node.id, node]))
+    const used = new Set()
+    let scan = 0
+    // What the last node became: 'start', 'new' (it has no partner) or its live partner.
+    // A text node pairs only with the text that follows that partner now, so the text
+    // between two elements never changes sides when an element appears or goes.
+    let prev = 'start'
+    const partners = want.map(node => {
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        const cand = prev === 'start' ? live.firstChild : prev === 'new' ? null : prev.nextSibling
+        if (cand && cand.nodeType === node.nodeType && !used.has(cand)) { used.add(cand); prev = cand; return cand }
+        prev = 'new'
+        return null
+      }
+      const id = idOf(node)
+      let found = null
+      if (id) {
+        const hit = byId.get(id)
+        if (hit && !used.has(hit)) found = hit
+      } else {
+        for (let j = scan; j < have.length; j++) {
+          const cand = have[j]
+          if (used.has(cand) || idOf(cand) || cand.nodeName !== node.nodeName) continue
+          found = cand
+          scan = j + 1
+          break
+        }
+      }
+      if (found) used.add(found)
+      prev = found ?? 'new'
+      return found
     })
-    for (let i = want.length; i < have.length; i++) have[i].remove()
+    for (const node of have) if (!used.has(node)) node.remove()
+    let cursor = live.firstChild
+    want.forEach((node, i) => {
+      const partner = partners[i]
+      if (!partner) { live.insertBefore(node, cursor); return }
+      if (partner !== cursor) live.insertBefore(partner, cursor)
+      else cursor = cursor.nextSibling
+      morph(partner, node)
+    })
   }
 
   // One listener per event type on the root: the nearest element with a handler gets it.

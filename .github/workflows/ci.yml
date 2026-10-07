@@ -28,9 +28,13 @@ jobs:
         with:
           node-version: 22
 
-      - name: Test the cockpit server
+      # The browser tests drive the runner's own Chrome with a real keyboard and mouse.
+      - name: Install puppeteer-core for the browser tests
+        run: npm install --no-save puppeteer-core
+
+      - name: Test the cockpit
         working-directory: plugins/tower/cockpit
-        run: node --test test/model.test.mjs test/server.test.mjs test/actions.test.mjs
+        run: node --test test/model.test.mjs test/server.test.mjs test/actions.test.mjs test/browser.test.mjs
 
   plugin:
     name: plugin validate and test

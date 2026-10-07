@@ -91,7 +91,8 @@ The cockpit's page is built from the approved design: `cockpit/web/mockup.dc.htm
 ```sh
 claude plugin validate plugins/tower
 claude plugin test plugins/tower
-node --test plugins/tower/cockpit/test/model.test.mjs plugins/tower/cockpit/test/server.test.mjs plugins/tower/cockpit/test/actions.test.mjs
+npm i --no-save puppeteer-core   # for the real-browser tests, which skip without it
+node --test plugins/tower/cockpit/test/*.test.mjs
 ```
 
 CI runs all of these on every push.

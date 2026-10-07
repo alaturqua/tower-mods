@@ -101,8 +101,10 @@
     answer: function (b) {
       var a = find(b.id)
       if (!a || !a.pending) return { ok: false, message: 'That request is no longer waiting.' }
-      if (b.allow === false) { note(a, 'sent', 'Denied: ' + a.pending.detail); work(a, 'Looking for another way'); return { ok: true, message: 'Denied.' } }
-      if (b.allow) { note(a, 'sent', 'Approved: ' + a.pending.detail); work(a, 'Running: ' + a.pending.detail); later(a, 'Done: ' + a.pending.detail); return { ok: true, message: 'Allowed.' } }
+      // Read before work() clears the request.
+      var what = a.pending.detail
+      if (b.allow === false) { note(a, 'sent', 'Denied: ' + what); work(a, 'Looking for another way'); return { ok: true, message: 'Denied.' } }
+      if (b.allow) { note(a, 'sent', 'Approved: ' + what); work(a, 'Running: ' + what); later(a, 'Done: ' + what); return { ok: true, message: 'Allowed.' } }
       note(a, 'sent', 'Answered: ' + b.text); work(a, 'Working on ' + b.text + ' first'); later(a, b.text + ' is upgraded; plan for the next one is ready.')
       return { ok: true, message: 'Answered.' }
     },
