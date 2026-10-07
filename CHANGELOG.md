@@ -2,6 +2,24 @@
 
 Everything notable in Tower (the plugin and its site), newest first. Generated from the commit history by [git-cliff](https://git-cliff.org).
 
+## [0.4.0](https://github.com/alaturqua/tower-mods/releases/tag/v0.4.0) - 2026-10-07
+
+### Added
+
+- Add a Help section to the site: update, restart, stop and troubleshooting ([3f621d4](https://github.com/alaturqua/tower-mods/commit/3f621d4ae1378897f148b9bc29df703932e9d93e))
+
+### Changed
+
+- Show install and update commands per system: PowerShell chains with a semicolon ([3777acc](https://github.com/alaturqua/tower-mods/commit/3777acc57b9a4148b24e212a9d154c8df1ac226d))
+- Give Windows one command per line: Command Prompt has no semicolon chaining ([a39ce8a](https://github.com/alaturqua/tower-mods/commit/a39ce8a9f97ffcb37da465ba3db93106d0f0a0fd))
+- Make the tower pane's Jump find the window by process, as the cockpit does ([adaa087](https://github.com/alaturqua/tower-mods/commit/adaa0873cb6244d3fd9a510449d83704f4ba098d))
+- Redesign the tower pane: grouped list beside a boxed detail, shorter preview, Open cockpit ([09fec97](https://github.com/alaturqua/tower-mods/commit/09fec97f9f42da5828012dd6aecc3092e55d401a))
+- Make the tower pane say how to use it: keyboard hint, state in the card, keys on the buttons ([ae001f0](https://github.com/alaturqua/tower-mods/commit/ae001f01c809decbf327ea0e86e840840b23b847))
+- Redesign the tower pane around triage: needs-you cards, one line per session, one send box ([832e4af](https://github.com/alaturqua/tower-mods/commit/832e4afa455c7f946d39569e8f149199f0bd6567))
+
+### Fixed
+
+- Fix the pane hint test ([31e1ebe](https://github.com/alaturqua/tower-mods/commit/31e1ebeea0b5ac8a833e1c3918d0cbaff33cf367))
 ## [0.3.2](https://github.com/alaturqua/tower-mods/releases/tag/v0.3.2) - 2026-10-07
 
 ### Changed
