@@ -61,7 +61,7 @@ await page.evaluate(() => {
   css.textContent = `
     #tw-cursor { position: fixed; left: 0; top: 0; z-index: 99998; pointer-events: none; width: 28px; height: 28px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
     #tw-ring { position: fixed; z-index: 99997; pointer-events: none; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; border: 3px solid #0A6E8A; opacity: 0; }
-    #tw-caption { position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%); z-index: 99996; pointer-events: none; max-width: 1200px; padding: 14px 28px; border-radius: 14px; background: rgba(22,27,34,.94); color: #fff; font: 600 26px/1.3 'IBM Plex Sans', system-ui, sans-serif; text-align: center; box-shadow: 0 12px 32px rgba(0,0,0,.28); opacity: 0; }
+    #tw-caption { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 99996; pointer-events: none; max-width: 1200px; padding: 14px 28px; border-radius: 14px; background: rgba(22,27,34,.94); color: #fff; font: 600 26px/1.3 'IBM Plex Sans', system-ui, sans-serif; text-align: center; box-shadow: 0 12px 32px rgba(0,0,0,.28); opacity: 0; }
     .tw-card { position: fixed; inset: 0; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: #F6F7F9; color: #161B22; font-family: 'IBM Plex Sans', system-ui, sans-serif; text-align: center; opacity: 0; pointer-events: none; }
     .tw-card h1 { margin: 0; font-size: 76px; line-height: 1.08; letter-spacing: -0.02em; }
     .tw-card p { margin: 0; font-size: 30px; color: #3A4350; }
