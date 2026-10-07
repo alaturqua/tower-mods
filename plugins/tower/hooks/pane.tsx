@@ -10,7 +10,6 @@ type $ = EngineInterface
 
 const PANE = 'tower'
 const USAGE = 'Usage: /tower · /tower list · /tower send <session> <prompt> · /tower launch <repo path> <task> · /tower add <repo path>'
-const JUMP_PS = `$ok = (New-Object -ComObject WScript.Shell).AppActivate($env:TOWER_TITLE); if (-not $ok) { exit 1 }`
 const COCKPIT_PS = `Start-Process -WindowStyle Hidden -FilePath node -ArgumentList (@('"' + $env:TOWER_SERVER + '"') + ($env:TOWER_FLAGS -split ' ')) `
 // A session the tower starts is its own, not a child of the tower's.
 const CHILD_ENV = { CLAUDECODE: '', CLAUDE_CODE_SESSION_ID: '', CLAUDE_CODE_CHILD_SESSION: '', CLAUDE_PID: '' }
@@ -107,12 +106,16 @@ async function jump($: $, s: TowerSession) {
     const ran = await $.process.run(['wt.exe', '-d', s.cwd, await claudeExe($), 'attach', s.id]).catch(() => undefined)
     return ran?.exitCode === 0 ? `Attached to ${s.label} in a new tab.` : `Couldn't open a terminal; run: claude attach ${s.id}`
   }
-  if ((await $.env.get('OS')) === 'Windows_NT') {
-    const ran = await $.process.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', JUMP_PS], { env: { TOWER_TITLE: s.name }, timeoutMs: 10000 })
+  // The window is found by process, the way the cockpit does: titles name the tab or the editor, not the session.
+  if ((await $.env.get('OS')) === 'Windows_NT' && s.pid) {
+    const script = `${$.plugin.root}/cockpit/lib/jump.ps1`
+    const ran = await $.process.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script], { env: { TOWER_PID: String(s.pid) }, timeoutMs: 15000 })
       .catch(() => undefined)
-    if (ran?.exitCode === 0) return `Switched to ${s.label}.`
+    const app = ran?.stdout.split('	')[0]?.trim()
+    if (ran?.exitCode === 0) return `Brought ${app || 'its window'} forward; ${s.label} is in one of its tabs.`
+    if (app) return `Windows would not bring ${app} forward; switch to it yourself. ${s.label} runs in ${s.cwd}.`
   }
-  return `Couldn't find the window titled "${s.name}"; it runs in ${s.cwd}.`
+  return `Couldn't find its window; ${s.label} runs in ${s.cwd}.`
 }
 
 async function knownRepos($: $) {

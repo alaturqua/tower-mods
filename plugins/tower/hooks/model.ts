@@ -49,6 +49,7 @@ export function merge(agents: readonly AgentRow[], statuses: Readonly<Record<str
       name: a.name ?? folder(a.cwd),
       label: beacon?.label ?? folder(a.cwd),
       cwd: a.cwd,
+      pid: a.pid ?? null,
       kind: a.kind === 'background' ? 'background' : 'interactive',
       state,
       message: beacon?.message ?? null,

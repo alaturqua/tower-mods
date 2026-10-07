@@ -23,6 +23,8 @@ export type TowerSession = {
   name: string
   label: string
   cwd: string
+  // The session's process, from which its window is found.
+  pid: number | null
   kind: 'interactive' | 'background'
   state: TowerState
   message: string | null
