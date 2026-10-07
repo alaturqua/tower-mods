@@ -174,3 +174,14 @@ test('the status line counts who needs you', quiet, async ($, on) => {
   expect(host.statuses.at(-1)?.startsWith('1 needs you')).toBe(true)
   expect(got.text).toContain('! dbt-platform')
 })
+
+test('the pane says how to use it, and tells two sessions of one folder apart', quiet, async ($, on) => {
+  stubHost(on)
+  await start($)
+  await $.command.run({ command: 'tower', args: 'list' } as never)
+  const pane = await $.ui.mount({ plugin: 'tower', surface: 'terminal', component: 'Pane', requestId: 'tower', props: paneProps(100) })
+
+  expect(await pane.find({ text: /ctrl\+x Tab to use it/ })).toBeTruthy()
+  expect(await pane.find({ text: /Message dbt-platform and press Enter/ })).toBeTruthy()
+  await pane.unmount()
+})

@@ -248,6 +248,7 @@ export const registerPane: Register = (on, options) => {
     const { Box, Text, Button, Input, Select } = $.ui.resolve(e)
     const width = (e.props as { bodyColumns?: number }).bodyColumns ?? e.viewport?.columns ?? 80
     const toast = (text: string) => $.ui.toast(text)
+    const focused = (e.props as { isFocused?: boolean }).isFocused === true
 
     if ((await read($, view)) === 'launch') {
       const repos = await knownRepos($)
@@ -285,11 +286,14 @@ export const registerPane: Register = (on, options) => {
     // A few lines of the answer's end, each cut to one line: the cockpit has the rest.
     const previewLines = Math.min(6, Math.max(2, (e.viewport?.rows ?? 30) - (wide ? 18 : list.length + 18)))
 
+    // Two sessions in one folder share a label; the first letters of the id tell them apart.
+    const nameOf = (s: TowerSession) => (list.filter(o => o.label === s.label).length > 1 ? `${s.label} #${s.id.slice(0, 4)}` : s.label) + (s.kind === 'background' ? ' (bg)' : '')
+
     const row = (s: TowerSession) => {
       const isChosen = s.id === target?.id
       const what = s.pending ? `${s.pending.title}: ${s.pending.detail ?? ''}` : (s.message ?? '')
       const cols = columns(wide ? listWidth : width)
-      const name = (s.label + (s.kind === 'background' ? ' (bg)' : '')).slice(0, wide ? 20 : cols.labelWidth).padEnd(wide ? 20 : cols.labelWidth)
+      const name = nameOf(s).slice(0, wide ? 20 : cols.labelWidth).padEnd(wide ? 20 : cols.labelWidth)
       return (
         <Box key={`row-${s.id}`} gap={1}>
           <Text color={COLOR[s.state]} dimColor={s.state === 'idle'} bold={isChosen}>{isChosen ? '▸' : ' '}{MARK[s.state]}</Text>
@@ -323,7 +327,10 @@ export const registerPane: Register = (on, options) => {
     const detail = target && (
       <Box flexDirection="column" flexGrow={1} flexShrink={1} gap={1} borderStyle="round" borderColor={target.pending ? 'warning' : undefined} borderDimColor={!target.pending} paddingX={1}>
         <Box flexDirection="column">
-          <Text bold wrap="truncate-end">{target.label}{target.kind === 'background' ? ' (bg)' : ''}</Text>
+          <Box gap={1}>
+            <Text bold wrap="truncate-end">{nameOf(target)}</Text>
+            <Text color={COLOR[target.state]} dimColor={target.state === 'idle'}>{MARK[target.state]} {target.state} · {ago(target.updatedAt, now)}</Text>
+          </Box>
           <Text dimColor wrap="truncate-middle">{target.cwd}{target.hasBeacon ? '' : ' · no beacon'}</Text>
         </Box>
         {target.pending && !pending && <Text color="warning">Waiting in its terminal: {target.pending.title} {target.pending.detail ?? ''}</Text>}
@@ -332,8 +339,8 @@ export const registerPane: Register = (on, options) => {
             <Text color="warning" bold>Needs approval</Text>
             <Text wrap="truncate-end">{pending.title} {pending.detail ?? ''}</Text>
             <Box gap={1}>
-              <Button key="allow" hotkey="a" variant="primary" onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, allow: true }).then(toast)}>Allow</Button>
-              <Button key="deny" hotkey="d" onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, allow: false }).then(toast)}>Deny</Button>
+              <Button key="allow" hotkey="a" variant="primary" onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, allow: true }).then(toast)}>Allow (a)</Button>
+              <Button key="deny" hotkey="d" onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, allow: false }).then(toast)}>Deny (d)</Button>
             </Box>
           </Box>
         )}
@@ -364,7 +371,7 @@ export const registerPane: Register = (on, options) => {
           </Box>
         )}
         {!target.hasBeacon && <Text dimColor>No preview: this session runs without beacon.</Text>}
-        <Input key={`say-${target.id}`} placeholder={pending?.kind === 'question' ? `Answer ${target.label}…` : `Send to ${target.label}…`} submitLabel="send"
+        <Input key={`say-${target.id}`} placeholder={pending?.kind === 'question' ? `Answer ${nameOf(target)} and press Enter…` : `Message ${nameOf(target)} and press Enter…`} submitLabel="send"
           onSubmit={text => { if (text.trim()) void sendText($, target, text.trim()).then(toast) }} />
       </Box>
     )
@@ -376,15 +383,18 @@ export const registerPane: Register = (on, options) => {
           <Text dimColor>· {list.length} session{list.length === 1 ? '' : 's'}</Text>
           {waiting > 0 && <Text color="warning" bold>· {waiting} need{waiting === 1 ? 's' : ''} you</Text>}
         </Box>
+        {focused
+          ? <Text color="success">● Typing here. Pick a session, write in the box, Enter sends · Esc goes back to your prompt</Text>
+          : <Text dimColor>Click this pane or press ctrl+x Tab to use it: pick a session, then message it.</Text>}
         {error && <Text color="warning">Stale: {error}</Text>}
         {wide
           ? <Box gap={1}>{sessionList}{detail}</Box>
           : <Box flexDirection="column" gap={1}>{sessionList}{detail}</Box>}
         <Box gap={1} flexWrap="wrap">
-          {target && <Button key="jump" hotkey="j" onPress={() => void jump($, target).then(toast)}>Jump</Button>}
-          <Button key="new" hotkey="n" onPress={() => void update($, view, () => 'launch')}>New session</Button>
-          <Button key="cockpit" hotkey="o" onPress={() => void startCockpit($, '--open').then(toast)}>Open cockpit</Button>
-          <Button key="refresh" hotkey="r" onPress={() => refresh($)}>Refresh</Button>
+          {target && <Button key="jump" hotkey="j" onPress={() => void jump($, target).then(toast)}>Jump (j)</Button>}
+          <Button key="new" hotkey="n" onPress={() => void update($, view, () => 'launch')}>New session (n)</Button>
+          <Button key="cockpit" hotkey="o" onPress={() => void startCockpit($, '--open').then(toast)}>Open cockpit (o)</Button>
+          <Button key="refresh" hotkey="r" onPress={() => refresh($)}>Refresh (r)</Button>
         </Box>
       </Box>
     )
