@@ -361,14 +361,19 @@ export const registerPane: Register = (on, options) => {
 
         {needs.length > 0 && (
           <Box flexDirection="column" borderStyle="round" borderColor="warning" paddingX={1}>
-            <Text color="warning" bold>NEEDS YOU</Text>
+            <Text color="warning" bold>Needs input</Text>
             {needs.map((s, i) => card(s, i === 0))}
           </Box>
         )}
 
-        <Box flexDirection="column">
+        <Box flexDirection="column" gap={1}>
           {list.length === 0 && <Text dimColor>No other sessions are running. Press n to start one.</Text>}
-          {list.filter(s => s.state !== 'needs-input').map(row)}
+          {[['Working', list.filter(s => s.state === 'working')], ['Completed', list.filter(s => s.state === 'done' || s.state === 'idle')]].map(([title, members]) => (members as TowerSession[]).length > 0 && (
+            <Box key={`group-${title}`} flexDirection="column">
+              <Text dimColor bold>{title as string}</Text>
+              {(members as TowerSession[]).map(row)}
+            </Box>
+          ))}
         </Box>
 
         {target && (
@@ -398,18 +403,19 @@ export const registerPane: Register = (on, options) => {
         {target && (
           <Box borderStyle="round" borderColor={focused ? 'suggestion' : undefined} borderDimColor={!focused} paddingX={1}>
             <Input key={`say-${target.id}`} label={`To ${nameOf(target)}`}
-              placeholder={target.pending?.kind === 'question' && target.remoteAnswers ? 'Type an answer, Enter sends' : 'Type a message or /command, Enter sends'} submitLabel="send"
+              placeholder={target.pending?.kind === 'question' && target.remoteAnswers ? 'Type an answer' : 'Type a message or /command'} submitLabel="send"
               onSubmit={text => { if (text.trim()) void sendText($, target, text.trim()).then(toast) }} />
           </Box>
         )}
 
         <Box gap={1} flexWrap="wrap">
-          <Button key="prev" hotkey="k" onPress={() => move(-1)}>↑ Prev (k)</Button>
-          <Button key="next" hotkey="j" onPress={() => move(1)}>↓ Next (j)</Button>
-          {target && <Button key="jump" hotkey="g" onPress={() => void jump($, target).then(toast)}>Jump (g)</Button>}
-          <Button key="new" hotkey="n" onPress={() => void update($, view, () => 'launch')}>New session (n)</Button>
-          <Button key="cockpit" hotkey="o" onPress={() => void startCockpit($, '--open').then(toast)}>Open cockpit (o)</Button>
-          <Button key="refresh" hotkey="r" onPress={() => refresh($)}>Refresh (r)</Button>
+          <Text dimColor>Enter: send ·</Text>
+          <Button key="prev" hotkey="k" plain onPress={() => move(-1)}>up</Button>
+          <Button key="next" hotkey="j" plain onPress={() => move(1)}>down</Button>
+          {target && <Button key="jump" hotkey="g" plain onPress={() => void jump($, target).then(toast)}>jump</Button>}
+          <Button key="new" hotkey="n" plain onPress={() => void update($, view, () => 'launch')}>new</Button>
+          <Button key="cockpit" hotkey="o" plain onPress={() => void startCockpit($, '--open').then(toast)}>cockpit</Button>
+          <Button key="refresh" hotkey="r" plain onPress={() => refresh($)}>refresh</Button>
         </Box>
       </Box>
     )
