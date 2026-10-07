@@ -123,7 +123,8 @@ for (const surface of ['terminal', 'desktop'] as const) {
       plugin: 'tower', surface, component: 'Pane', requestId: 'tower',
       props: paneProps(100),
     })
-    expect(await pane.find({ text: /Needs approval: Bash git push/ })).toBeTruthy()
+    expect(await pane.find({ text: /^Needs approval$/ })).toBeTruthy()
+    expect(await pane.find({ text: /Bash git push/ })).toBeTruthy()
 
     await pane.press({ key: 'allow' })
     await pane.input({ key: 'say-dbt-id', text: 'then open a PR' })
@@ -160,7 +161,8 @@ test('a narrow pane drops the message column but the detail still shows it whole
 
   const rows = await pane.findAll({ text: /^Bash: git push$/ })
   expect(rows.length).toBe(0)
-  expect(await pane.find({ text: /Needs approval: Bash git push/ })).toBeTruthy()
+  expect(await pane.find({ text: /^Needs approval$/ })).toBeTruthy()
+    expect(await pane.find({ text: /Bash git push/ })).toBeTruthy()
   await pane.unmount()
 })
 

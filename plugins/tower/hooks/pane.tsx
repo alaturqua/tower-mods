@@ -118,6 +118,24 @@ async function jump($: $, s: TowerSession) {
   return `Couldn't find its window; ${s.label} runs in ${s.cwd}.`
 }
 
+// The cockpit server outlives the session: started detached, it opens the browser itself,
+// and a second start just opens the one already running.
+async function startCockpit($: $, flags: string) {
+  const server = `${$.plugin.root}/cockpit/server.mjs`
+  const isWindows = (await $.env.get('OS')) === 'Windows_NT'
+  const argv = isWindows
+    ? ['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', COCKPIT_PS]
+    : ['sh', '-c', 'nohup node "$TOWER_SERVER" $TOWER_FLAGS >/dev/null 2>&1 &']
+  const ran = await $.process.run(argv, { env: { TOWER_SERVER: server, TOWER_FLAGS: flags }, timeoutMs: 15000 }).catch(err => ({ exitCode: -1, stdout: '', stderr: String(err) }))
+  if (ran.exitCode !== 0) return `Couldn't start the cockpit (is Node.js 18+ installed?): ${ran.stderr.trim().slice(0, 200)}\nRun it yourself: node "${server}" ${flags}`
+  return flags.includes('--restart') ? 'Restarting the Tower cockpit and opening it in your browser.' : 'Opening the Tower cockpit in your browser. It keeps running after this session; the link it opened works until it stops.'
+}
+
+async function stopCockpit($: $) {
+  const stopped = await $.process.run(['node', `${$.plugin.root}/cockpit/server.mjs`, '--stop'], { timeoutMs: 10000 }).catch(err => ({ exitCode: -1, stdout: '', stderr: String(err) }))
+  return stopped.exitCode === 0 ? stopped.stdout.trim() : `Couldn't stop the cockpit: ${stopped.stderr.trim().slice(0, 200)}`
+}
+
 async function knownRepos($: $) {
   const saved = ((await $.store.get('repos')) as string[] | undefined) ?? []
   const live = (await read($, sessions)).map(s => s.cwd)
@@ -204,20 +222,9 @@ export const registerPane: Register = (on, options) => {
   // and a second start just opens the one already running.
   // /cockpit opens it; /cockpit restart replaces it (after an update); /cockpit stop stops it.
   on('command.run', { command: 'cockpit' }, async ($, e) => {
-    const server = `${$.plugin.root}/cockpit/server.mjs`
     const verb = e.args.trim().toLowerCase()
-    if (verb === 'stop') {
-      const stopped = await $.process.run(['node', server, '--stop'], { timeoutMs: 10000 }).catch(err => ({ exitCode: -1, stdout: '', stderr: String(err) }))
-      return { text: stopped.exitCode === 0 ? stopped.stdout.trim() : `Couldn't stop the cockpit: ${stopped.stderr.trim().slice(0, 200)}` }
-    }
-    const flags = verb === 'restart' ? '--restart --open' : '--open'
-    const isWindows = (await $.env.get('OS')) === 'Windows_NT'
-    const argv = isWindows
-      ? ['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', COCKPIT_PS]
-      : ['sh', '-c', 'nohup node "$TOWER_SERVER" $TOWER_FLAGS >/dev/null 2>&1 &']
-    const ran = await $.process.run(argv, { env: { TOWER_SERVER: server, TOWER_FLAGS: flags }, timeoutMs: 15000 }).catch(err => ({ exitCode: -1, stdout: '', stderr: String(err) }))
-    if (ran.exitCode !== 0) return { text: `Couldn't start the cockpit (is Node.js 18+ installed?): ${ran.stderr.trim().slice(0, 200)}\nRun it yourself: node "${server}" ${flags}` }
-    return { text: verb === 'restart' ? 'Restarting the Tower cockpit and opening it in your browser.' : 'Opening the Tower cockpit in your browser. It keeps running after this session; the link it opened works until it stops.' }
+    if (verb === 'stop') return { text: await stopCockpit($) }
+    return { text: await startCockpit($, verb === 'restart' ? '--restart --open' : '--open') }
   })
 
   on('command.run', { command: 'tower' }, async ($, e) => {
@@ -228,7 +235,7 @@ export const registerPane: Register = (on, options) => {
     if (e.args.trim()) return { text: await runCommand($, e.args) }
     await update($, view, () => 'list')
     refresh($)
-    await $.ui.open({ id: PANE, title: 'Tower', focus: true })
+    await $.ui.open({ id: PANE, title: 'Tower', focus: true, columns: 110, rows: 24 })
     return { text: 'Tower opened.' }
   })
 
@@ -272,71 +279,111 @@ export const registerPane: Register = (on, options) => {
     const target = list.find(s => s.id === chosen) ?? list[0]
     const waiting = list.filter(s => s.state === 'needs-input').length
     const pending = target?.remoteAnswers ? target.pending : null
-    const cols = columns(width)
-    // The preview gets what the rows and controls leave of the pane's height.
-    const previewLines = Math.min(8, Math.max(2, (e.viewport?.rows ?? 30) - list.length - 14))
-    const rule = <Text dimColor>{'─'.repeat(Math.max(10, width - 2))}</Text>
+    // Side by side when there is room, stacked when there is not.
+    const wide = width >= 84
+    const listWidth = 34
+    // A few lines of the answer's end, each cut to one line: the cockpit has the rest.
+    const previewLines = Math.min(6, Math.max(2, (e.viewport?.rows ?? 30) - (wide ? 18 : list.length + 18)))
 
     const row = (s: TowerSession) => {
       const isChosen = s.id === target?.id
       const what = s.pending ? `${s.pending.title}: ${s.pending.detail ?? ''}` : (s.message ?? '')
-      const name = (s.label + (s.kind === 'background' ? ' (bg)' : '')).slice(0, cols.labelWidth).padEnd(cols.labelWidth)
+      const cols = columns(wide ? listWidth : width)
+      const name = (s.label + (s.kind === 'background' ? ' (bg)' : '')).slice(0, wide ? 20 : cols.labelWidth).padEnd(wide ? 20 : cols.labelWidth)
       return (
         <Box key={`row-${s.id}`} gap={1}>
           <Text color={COLOR[s.state]} dimColor={s.state === 'idle'} bold={isChosen}>{isChosen ? '▸' : ' '}{MARK[s.state]}</Text>
           <Button key={`pick-${s.id}`} plain onPress={() => void update($, selected, () => s.id)}>{name}</Button>
-          {cols.showState && <Text color={COLOR[s.state]} dimColor={s.state === 'idle'}>{s.state.padEnd(11)}</Text>}
-          <Box flexGrow={1}>{cols.showMessage && <Text dimColor wrap="truncate-end">{what.replace(/\s+/g, ' ')}</Text>}</Box>
+          {!wide && cols.showState && <Text color={COLOR[s.state]} dimColor={s.state === 'idle'}>{s.state.padEnd(11)}</Text>}
+          <Box flexGrow={1}>{!wide && cols.showMessage && <Text dimColor wrap="truncate-end">{what.replace(/\s+/g, ' ')}</Text>}</Box>
           <Text dimColor>{ago(s.updatedAt, now)}</Text>
         </Box>
       )
     }
 
+    // The list in the order that matters: who needs you, who works, the rest.
+    const groups: [string, TowerSession[]][] = [
+      ['NEEDS YOU', list.filter(s => s.state === 'needs-input')],
+      ['WORKING', list.filter(s => s.state === 'working')],
+      ['DONE AND IDLE', list.filter(s => s.state === 'done' || s.state === 'idle')],
+    ]
+    const sessionList = (
+      <Box flexDirection="column" width={wide ? listWidth : undefined}>
+        {list.length === 0 && <Text dimColor>No other sessions are running. Press n to start one.</Text>}
+        {groups.filter(([, members]) => members.length > 0).map(([title, members], i) => (
+          <Box key={`group-${title}`} flexDirection="column" marginTop={i === 0 ? 0 : 1}>
+            <Text dimColor bold>{title}</Text>
+            {members.map(row)}
+          </Box>
+        ))}
+      </Box>
+    )
+
+    const answerLines = target?.lastAnswer ? tail(target.lastAnswer, previewLines).split('\n') : []
+    const detail = target && (
+      <Box flexDirection="column" flexGrow={1} flexShrink={1} gap={1} borderStyle="round" borderColor={target.pending ? 'warning' : undefined} borderDimColor={!target.pending} paddingX={1}>
+        <Box flexDirection="column">
+          <Text bold wrap="truncate-end">{target.label}{target.kind === 'background' ? ' (bg)' : ''}</Text>
+          <Text dimColor wrap="truncate-middle">{target.cwd}{target.hasBeacon ? '' : ' · no beacon'}</Text>
+        </Box>
+        {target.pending && !pending && <Text color="warning">Waiting in its terminal: {target.pending.title} {target.pending.detail ?? ''}</Text>}
+        {pending?.kind === 'permission' && (
+          <Box flexDirection="column" borderStyle="round" borderColor="warning" paddingX={1}>
+            <Text color="warning" bold>Needs approval</Text>
+            <Text wrap="truncate-end">{pending.title} {pending.detail ?? ''}</Text>
+            <Box gap={1}>
+              <Button key="allow" hotkey="a" variant="primary" onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, allow: true }).then(toast)}>Allow</Button>
+              <Button key="deny" hotkey="d" onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, allow: false }).then(toast)}>Deny</Button>
+            </Box>
+          </Box>
+        )}
+        {pending?.kind === 'question' && (
+          <Box flexDirection="column" borderStyle="round" borderColor="warning" paddingX={1}>
+            <Text color="warning" bold>Asks</Text>
+            <Text>{pending.title}</Text>
+            <Box gap={1} flexWrap="wrap">
+              {(pending.options ?? []).slice(0, 4).map((label, i) => (
+                <Button key={`opt-${i}`} hotkey={String(i + 1)} onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, text: label }).then(toast)}>{label}</Button>
+              ))}
+            </Box>
+          </Box>
+        )}
+        {!target.pending && target.message && target.state !== 'done' && <Text color={COLOR[target.state]} wrap="truncate-end">{target.message}</Text>}
+        {target.lastPrompt && (
+          <Box gap={1}>
+            <Text bold>You</Text>
+            <Box flexGrow={1}><Text dimColor wrap="truncate-end">{target.lastPrompt.replace(/\s+/g, ' ')}</Text></Box>
+          </Box>
+        )}
+        {answerLines.length > 0 && (
+          <Box gap={1}>
+            <Text bold color="suggestion">Claude</Text>
+            <Box flexGrow={1} flexDirection="column">
+              {answerLines.map((line, i) => <Text key={`line-${i}`} wrap="truncate-end">{line}</Text>)}
+            </Box>
+          </Box>
+        )}
+        {!target.hasBeacon && <Text dimColor>No preview: this session runs without beacon.</Text>}
+        <Input key={`say-${target.id}`} placeholder={pending?.kind === 'question' ? `Answer ${target.label}…` : `Send to ${target.label}…`} submitLabel="send"
+          onSubmit={text => { if (text.trim()) void sendText($, target, text.trim()).then(toast) }} />
+      </Box>
+    )
+
     return (
-      <Box flexDirection="column">
+      <Box flexDirection="column" gap={1}>
         <Box gap={1}>
           <Text bold>Tower</Text>
           <Text dimColor>· {list.length} session{list.length === 1 ? '' : 's'}</Text>
           {waiting > 0 && <Text color="warning" bold>· {waiting} need{waiting === 1 ? 's' : ''} you</Text>}
         </Box>
         {error && <Text color="warning">Stale: {error}</Text>}
-        {list.length === 0 && <Text dimColor>No other sessions are running. Press n to start one.</Text>}
-        {list.map(row)}
-        {target && (
-          <Box flexDirection="column">
-            {rule}
-            <Text dimColor wrap="truncate-middle">{target.name} · {target.cwd} · {target.kind}{target.hasBeacon ? '' : ' · no beacon'}</Text>
-            {target.pending && !pending && <Text color="warning">Waiting in its terminal: {target.pending.title} {target.pending.detail ?? ''}</Text>}
-            {pending?.kind === 'permission' && (
-              <Box flexDirection="column">
-                <Text color="warning">Needs approval: {pending.title} {pending.detail ?? ''}</Text>
-                <Box gap={1}>
-                  <Button key="allow" hotkey="a" variant="primary" onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, allow: true }).then(toast)}>Allow</Button>
-                  <Button key="deny" hotkey="d" onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, allow: false }).then(toast)}>Deny</Button>
-                </Box>
-              </Box>
-            )}
-            {pending?.kind === 'question' && (
-              <Box flexDirection="column">
-                <Text color="warning">Asks: {pending.title}</Text>
-                <Box gap={1} flexWrap="wrap">
-                  {(pending.options ?? []).slice(0, 4).map((label, i) => (
-                    <Button key={`opt-${i}`} hotkey={String(i + 1)} onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, text: label }).then(toast)}>{label}</Button>
-                  ))}
-                </Box>
-              </Box>
-            )}
-            {!target.pending && target.message && target.state !== 'done' && <Text>{target.message}</Text>}
-            {target.lastPrompt && <Text dimColor wrap="truncate-end">You › {target.lastPrompt.replace(/\s+/g, ' ')}</Text>}
-            {target.lastAnswer && <Text>{tail(target.lastAnswer, previewLines)}</Text>}
-            {!target.hasBeacon && <Text dimColor>No preview: this session runs without beacon.</Text>}
-            <Input key={`say-${target.id}`} placeholder={pending?.kind === 'question' ? `Answer ${target.label}…` : `Send to ${target.label}…`} submitLabel="send"
-              onSubmit={text => { if (text.trim()) void sendText($, target, text.trim()).then(toast) }} />
-          </Box>
-        )}
+        {wide
+          ? <Box gap={1}>{sessionList}{detail}</Box>
+          : <Box flexDirection="column" gap={1}>{sessionList}{detail}</Box>}
         <Box gap={1} flexWrap="wrap">
           {target && <Button key="jump" hotkey="j" onPress={() => void jump($, target).then(toast)}>Jump</Button>}
           <Button key="new" hotkey="n" onPress={() => void update($, view, () => 'launch')}>New session</Button>
+          <Button key="cockpit" hotkey="o" onPress={() => void startCockpit($, '--open').then(toast)}>Open cockpit</Button>
           <Button key="refresh" hotkey="r" onPress={() => refresh($)}>Refresh</Button>
         </Box>
       </Box>
