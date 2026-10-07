@@ -215,3 +215,5 @@ kbd { font-family: var(--mono); font-size: 0.82em; padding: 1px 6px; border: 1px
 .os-switch button[aria-pressed="true"] { background: var(--panel); color: var(--text); box-shadow: 0 0 0 1px var(--line); }
 .intro .os-switch { margin: 14px 0 0; }
 .os-note { max-width: 760px; margin: 12px 0 0; color: var(--muted); font-size: 14px; }
+[data-cmd] { white-space: pre-line; }
+.install-line code[data-cmd] { white-space: pre-line; }

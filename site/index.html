@@ -185,7 +185,7 @@
         <button type="button" class="copy" data-copy="install-cmds">Copy</button>
 <pre id="install-cmds"><code data-cmd="install">claude plugin marketplace add alaturqua/tower-mods &amp;&amp; claude plugin install tower@tower</code></pre>
       </div>
-      <p class="os-note" data-os-note>On Windows, PowerShell runs the two commands one after the other with a semicolon. In Command Prompt, or PowerShell 7, you can use <code>&amp;&amp;</code> as on macOS and Linux.</p>
+      <p class="os-note" data-os-note>On Windows, run the two commands one after the other, in PowerShell or Command Prompt. Neither takes both in one line: PowerShell 5 has no <code>&amp;&amp;</code>, and Command Prompt has no <code>;</code>.</p>
       <ul class="setup">
         <li><b>Open the cockpit:</b> <code>/cockpit</code> in any session starts it and opens your browser. It listens on this machine only, behind a one-time link.</li>
         <li><b>Needs:</b> Node.js 18 or newer for the cockpit, and <code>gh</code> for pull requests. Sessions started before installing need a restart to report and receive.</li>
@@ -276,10 +276,11 @@ node "&lt;plugin folder&gt;/cockpit/server.mjs" --stop</code></pre>
       apply()
     })()
 
-    // The install and update commands per system: PowerShell 5 has no &&, so Windows chains with ;.
+    // The install and update commands per system. Windows gets one command per line: PowerShell 5 has no &&
+    // and Command Prompt has no ;, but both run pasted lines one after the other.
     // The choice starts from the browser's platform, is remembered, and moves every switch together.
     ;(function () {
-      var AND = ' && ', SEMI = '; '
+      var AND = ' && ', LINES = '\n'
       var parts = {
         install: ['claude plugin marketplace add alaturqua/tower-mods', 'claude plugin install tower@tower'],
         update: ['claude plugin marketplace update tower', 'claude plugin update tower']
@@ -303,7 +304,7 @@ node "&lt;plugin folder&gt;/cockpit/server.mjs" --stop</code></pre>
         })
       })
       function apply() {
-        document.querySelectorAll('[data-cmd]').forEach(function (el) { el.textContent = parts[el.dataset.cmd].join(os === 'windows' ? SEMI : AND) })
+        document.querySelectorAll('[data-cmd]').forEach(function (el) { el.textContent = parts[el.dataset.cmd].join(os === 'windows' ? LINES : AND) })
         document.querySelectorAll('.os-switch button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.os === os)) })
         document.querySelectorAll('[data-os-note]').forEach(function (n) { n.hidden = os !== 'windows' })
       }
