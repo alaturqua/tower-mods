@@ -88,7 +88,12 @@ export const gitOf = cached(5000, async cwd => {
   if (!top.ok) return null
   const common = (await git(cwd, 'rev-parse', '--path-format=absolute', '--git-common-dir')).stdout.trim()
   const repoRoot = common.endsWith('.git') ? dirname(common) : top.stdout.trim()
-  const branch = (await git(cwd, 'rev-parse', '--abbrev-ref', 'HEAD')).stdout.trim() || 'HEAD'
+  let branch = (await git(cwd, 'rev-parse', '--abbrev-ref', 'HEAD')).stdout.trim() || 'HEAD'
+  // "HEAD" is what git prints for a detached head, or a repository with no commits yet.
+  if (branch === 'HEAD') {
+    const sha = (await git(cwd, 'rev-parse', '--short', 'HEAD')).stdout.trim()
+    branch = sha ? `detached@${sha}` : 'no commits yet'
+  }
   const base = await defaultBranch(cwd)
   let add = 0, del = 0, ahead = 0, behind = 0
   const files = []

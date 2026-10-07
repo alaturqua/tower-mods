@@ -20,6 +20,10 @@ var BUILTIN_COMMANDS = [
   ['agents', 'Manage subagents'], ['mcp', 'Manage MCP servers'], ['help', 'List what Claude Code can do']
 ].map(function (c) { return { name: c[0], description: c[1] }; });
 var MENU_MAX = 40;
+// How wide the two side panels may be, in CSS pixels. The middle always keeps MAIN_MIN.
+var PANELS = { rail: { min: 220, max: 560, def: 300 }, detail: { min: 320, max: 760, def: 440 } };
+var MAIN_MIN = 360;
+var COLLAPSED_PANEL = 64;
 var BTN_PRIMARY ='min-height: 40px; padding: 0 14px; border-radius: 8px; border: none; background: var(--warn); color: var(--on-warn); font-weight: 600';
 var BTN_SECONDARY = 'min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--warn-edge); background: transparent; color: var(--text)';
 
@@ -52,6 +56,7 @@ class Component extends DCLogic {
       conn: 'connecting', repo: 'all', ws: null, selected: null, draft: '', checked: {}, bulkDraft: '', tab: 'activity',
       view: saved.view || 'fleet', theme: saved.theme || 'system', systemLight: systemLight,
       folded: saved.folded || {}, railCollapsed: Boolean(saved.railCollapsed), detailCollapsed: Boolean(saved.detailCollapsed),
+      railWidth: Number(saved.railWidth) || PANELS.rail.def, detailWidth: Number(saved.detailWidth) || PANELS.detail.def, dragging: null,
       formOpen: false, formRepo: null, formPath: null, formWorktree: true, formName: '', formBase: 'main', formModel: '', formMode: 'auto', formTask: '',
       toast: null, commands: {}, cmdIndex: 0, cmdClosed: false, menuFor: null
     };
@@ -72,8 +77,72 @@ class Component extends DCLogic {
   remember(patch) {
     this.setState(patch, function () {
       var st = this.state;
-      try { localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: st.theme, view: st.view, folded: st.folded, railCollapsed: st.railCollapsed, detailCollapsed: st.detailCollapsed })); } catch (err) {}
+      try { localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: st.theme, view: st.view, folded: st.folded, railCollapsed: st.railCollapsed, detailCollapsed: st.detailCollapsed, railWidth: st.railWidth, detailWidth: st.detailWidth })); } catch (err) {}
     });
+  }
+
+  // A panel's width, within its limits and the window: the middle keeps MAIN_MIN.
+  clampPanel(which, px) {
+    var st = this.state, p = PANELS[which];
+    var other = which === 'rail' ? (st.detailCollapsed ? COLLAPSED_PANEL : st.detailWidth) : (st.railCollapsed ? COLLAPSED_PANEL : st.railWidth);
+    var room = Math.max(p.min, window.innerWidth - other - MAIN_MIN);
+    return Math.round(Math.max(p.min, Math.min(p.max, room, px)));
+  }
+
+  // Drag a grip: the pointer is captured, so the drag follows it past the panel and
+  // out of the window; the width is saved when it is let go.
+  startResize(which, e) {
+    var self = this, grip = e.target, from = e.clientX, start = this.state[which + 'Width'], dir = which === 'rail' ? 1 : -1;
+    e.preventDefault();
+    if (grip.setPointerCapture) grip.setPointerCapture(e.pointerId);
+    this.setState({ dragging: which });
+    var move = function (ev) {
+      var patch = {};
+      patch[which + 'Width'] = self.clampPanel(which, start + dir * (ev.clientX - from));
+      self.setState(patch);
+    };
+    var up = function () {
+      grip.removeEventListener('pointermove', move);
+      grip.removeEventListener('pointerup', up);
+      grip.removeEventListener('pointercancel', up);
+      self.remember({ dragging: null });
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', up);
+    grip.addEventListener('pointercancel', up);
+  }
+
+  // Arrow keys move the grip 16px (64 with Shift), Home and End go to the limits.
+  nudgePanel(which, e) {
+    var p = PANELS[which], step = (e.shiftKey ? 64 : 16) * (which === 'rail' ? 1 : -1), now = this.state[which + 'Width'], to = null;
+    if (e.key === 'ArrowRight') to = now + step;
+    else if (e.key === 'ArrowLeft') to = now - step;
+    else if (e.key === 'Home') to = p.min;
+    else if (e.key === 'End') to = p.max;
+    if (to === null) return;
+    e.preventDefault();
+    var patch = {};
+    patch[which + 'Width'] = this.clampPanel(which, to);
+    this.remember(patch);
+  }
+
+  resetPanel(which) {
+    var patch = {};
+    patch[which + 'Width'] = PANELS[which].def;
+    this.remember(patch);
+  }
+
+  panelVals() {
+    var self = this, st = this.state;
+    return {
+      // Shown width: a saved width from a bigger window still fits this one.
+      railWidth: this.clampPanel('rail', st.railWidth), detailWidth: this.clampPanel('detail', st.detailWidth),
+      railMin: PANELS.rail.min, railMax: PANELS.rail.max, detailMin: PANELS.detail.min, detailMax: PANELS.detail.max,
+      railGrip: 'tw-grip' + (st.dragging === 'rail' ? ' on' : ''), detailGrip: 'tw-grip' + (st.dragging === 'detail' ? ' on' : ''),
+      railDown: function (e) { self.startResize('rail', e); }, detailDown: function (e) { self.startResize('detail', e); },
+      railKey: function (e) { self.nudgePanel('rail', e); }, detailKey: function (e) { self.nudgePanel('detail', e); },
+      railReset: function () { self.resetPanel('rail'); }, detailReset: function () { self.resetPanel('detail'); }
+    };
   }
 
   toast(text, isError) {
@@ -338,7 +407,7 @@ class Component extends DCLogic {
       var chosen = sel && a.id === sel.id;
       var pr = a.pr ? ('#' + a.pr.num + (a.pr.checks.some(function (c) { return c[1] === 'fail'; }) ? ' · CI ✗' : a.pr.checks.length ? ' · CI ✓' : '') + (a.pr.mergeable ? ' · ready' : '')) : '—';
       return {
-        repo: a.repo, name: a.name, kindTag: a.kind, stateLabel: LABELS[a.state], doing: a.doing, ctx: a.ctx + '%', cost: money(a.cost),
+        repo: a.repo, name: a.name, branch: a.branch, kindTag: a.kind, stateLabel: LABELS[a.state], doing: a.doing, ctx: a.ctx + '%', cost: money(a.cost),
         add: String(a.add), del: String(a.del), files: String(a.files), pr: pr,
         prStyle: "font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: " + (!a.pr ? 'var(--faint)' : (pr.indexOf('✗') >= 0 ? 'var(--bad)' : 'var(--ok)')),
         hasHealth: Boolean(a.health), health: a.health || '',
@@ -356,7 +425,7 @@ class Component extends DCLogic {
       var p = a.pending, old = a.waited >= 5;
       return {
         repo: a.repo, name: a.name, waited: a.waited + 'm', detail: p.detail, why: p.why || '', hasWhy: Boolean(p.why),
-        waitStyle: "font-size: 12px; font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: " + (old ? 'var(--bad)' : 'var(--warn)'),
+        waitStyle: "flex: none; white-space: nowrap; font-size: 12px; font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: " + (old ? 'var(--bad)' : 'var(--warn)'),
         cardStyle: 'background: var(--warn-bg); border: 1px solid ' + (old ? 'var(--bad-edge2)' : 'var(--warn-edge)') + '; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px',
         kindLabel: p.kind === 'question' ? 'Asks you' : p.kind === 'edit' ? 'Wants to edit' : p.kind === 'local' ? 'Waiting in its terminal' : 'Wants to run',
         hasRisk: Boolean(p.risk), risk: p.risk || '',
@@ -396,6 +465,7 @@ class Component extends DCLogic {
     var cmds = (sel && st.commands[sel.id]) || [];
 
     return {
+      panels: this.panelVals(),
       theme: {
         attr: themeAttr,
         options: [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(function (o) {

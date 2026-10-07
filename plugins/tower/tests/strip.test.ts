@@ -81,6 +81,7 @@ test('options hide the parts you do not want', { options: { pollSeconds: 0, show
 test('model ids read as names', () => {
   expect(modelName('claude-opus-5-5')).toBe('Opus 5.5')
   expect(modelName('claude-haiku-4-5-20251001')).toBe('Haiku 4.5')
+  expect(modelName('eu.anthropic.claude-sonnet-5-5')).toBe('Sonnet 5.5')
   expect(modelName('claude-fable-5-1[1m]')).toBe('Fable 5.1 1M')
   expect(modelName('Sonnet 5.5')).toBe('Sonnet 5.5')
 })

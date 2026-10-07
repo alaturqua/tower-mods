@@ -67,10 +67,13 @@ export function ago(then, now) {
 
 const MODES = { default: 'default', acceptEdits: 'accept edits', plan: 'plan', auto: 'auto', bypassPermissions: 'bypass', dontAsk: "don't ask" }
 
+// "claude-opus-5-5" reads "Opus 5.5". The name is found wherever it sits in the id, so a
+// provider's prefix ("eu.anthropic.claude-sonnet-5-5") needs no special case.
 export function modelName(model) {
-  const m = /^claude-([a-z]+)-(\d+)-(\d{1,2})/i.exec(String(model ?? '').replace(/\[1m\]$/i, ''))
-  if (!m) return model || '—'
-  return `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}.${m[3]}${/\[1m\]$/i.test(model) ? ' 1M' : ''}`
+  const raw = String(model ?? '')
+  const m = /claude-([a-z]+)-(\d+)(?:-(\d{1,2})(?!\d))?/i.exec(raw)
+  if (!m) return raw || '—'
+  return `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}${m[3] ? '.' + m[3] : ''}${/\[1m\]/i.test(raw) ? ' 1M' : ''}`
 }
 
 // What a pending request looks like on a card. A session that keeps its own dialogs still

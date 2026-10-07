@@ -22,12 +22,13 @@ const MODES: Record<string, string> = {
 }
 
 // `claude-opus-5-5` reads `Opus 5.5`; a name already readable is kept.
+// Finds the name wherever it sits in the id, so a provider's prefix
+// ("eu.anthropic.claude-sonnet-5-5") needs no special case.
 export function modelName(model: string) {
-  const big = /\[1m\]$/i.test(model) ? ' 1M' : ''
-  const m = /^claude-([a-z]+)-(\d+)-(\d{1,2})(?:-\d{8})?/i.exec(model.replace(/\[1m\]$/i, ''))
+  const m = /claude-([a-z]+)-(\d+)(?:-(\d{1,2})(?!\d))?/i.exec(model)
   if (!m) return model
   const family = (m[1] ?? '').charAt(0).toUpperCase() + (m[1] ?? '').slice(1)
-  return `${family} ${m[2]}.${m[3]}${big}`
+  return `${family} ${m[2]}${m[3] ? '.' + m[3] : ''}${/\[1m\]/i.test(model) ? ' 1M' : ''}`
 }
 
 export function compose(p: StripParts) {

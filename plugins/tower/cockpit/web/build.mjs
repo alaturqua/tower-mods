@@ -105,7 +105,7 @@ swap(`<button type="button" style="${btn}">Open on GitHub</button>`, `<a href="{
 swap('<button type="button" style="{{sel.mergeStyle}}">{{sel.mergeLabel}}</button>', '<button type="button" onClick="{{sel.merge}}" style="{{sel.mergeStyle}}">{{sel.mergeLabel}}</button>')
 swap(`<button type="button" style="align-self: flex-start; ${btn}">Ask it to open one</button>`, `<button type="button" onClick="{{sel.askPr}}" style="align-self: flex-start; ${btn}">Ask it to open one</button>`)
 swap('<ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px">',
-  '<sc-if value="{{sel.noFeed}}" hint-placeholder-val="{{ false }}"><p style="margin: 0; color: var(--muted); font-size: 13px">No activity yet. A session reports it once it runs the latest Tower plugin.</p></sc-if>\n        <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; max-height: 420px; overflow-y: auto">')
+  '<sc-if value="{{sel.noFeed}}" hint-placeholder-val="{{ false }}"><p style="margin: 0; color: var(--muted); font-size: 13px">No activity yet. A session reports it once it runs the latest Tower plugin.</p></sc-if>\n        <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px">')
 
 // The send box: typing "/" opens a drop-up of the session's slash commands, as Claude
 // Code's own prompt does. ↑/↓ move, Enter or Tab take one, Esc closes.
@@ -119,7 +119,7 @@ swap('<label for="say" style="font-size: 12px; color: var(--muted)">Send to {{se
         </sc-if>`)
 swap('<div style="display: flex; gap: 8px">\n          <input id="say" value="{{draft}}"', `<div style="position: relative; display: flex; gap: 8px">
           <sc-if value="{{cmd.open}}" hint-placeholder-val="{{ false }}">
-            <div id="say-commands" role="listbox" aria-label="Slash commands" style="position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 5; max-height: 340px; overflow-y: auto; border-radius: 10px; border: 1px solid var(--edge); background: var(--panel); box-shadow: 0 -8px 24px rgba(0,0,0,0.18); padding: 4px">
+            <div id="say-commands" role="listbox" aria-label="Slash commands" style="position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 5; max-height: min(340px, 50vh); overflow-y: auto; border-radius: 10px; border: 1px solid var(--edge); background: var(--panel); box-shadow: 0 -8px 24px rgba(0,0,0,0.18); padding: 4px">
               <sc-for list="{{cmd.items}}" as="c" hint-placeholder-count="6">
                 <button type="button" role="option" aria-selected="{{c.on}}" onClick="{{c.pick}}" style="{{c.style}}">
                   <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600; white-space: nowrap">{{c.name}}</span>
@@ -137,8 +137,8 @@ swap('<div style="display: flex; gap: 8px">\n          <input id="say" value="{{
           <input id="say" role="combobox" aria-expanded="{{cmd.expanded}}" aria-controls="say-commands" aria-autocomplete="list" autocomplete="off" onKeyDown="{{cmd.key}}" value="{{draft}}"`)
 page = page.replace(/\s*<button type="button" onClick="\{\{pauseSel\}\}"[^\n]*/, '')
 swap(`<button type="button" style="${btn}">Jump to terminal</button>`, `<button type="button" onClick="{{sel.jump}}" style="${btn}">Jump to terminal</button>`)
-swap('<button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bad-edge); background: transparent; color: var(--bad-text)">Stop</button>\n      </div>\n    </aside>',
-  '<button type="button" onClick="{{sel.stop}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bad-edge); background: transparent; color: var(--bad-text)">Stop</button>\n      </div>\n    </aside>')
+swap('<button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bad-edge); background: transparent; color: var(--bad-text)">Stop</button>\n      </div>\n      </div>\n    </aside>',
+  '<button type="button" onClick="{{sel.stop}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bad-edge); background: transparent; color: var(--bad-text)">Stop</button>\n      </div>\n      </div>\n    </aside>')
 
 swap('<button type="button" onClick="{{send}}" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">Send</button>',
   '<button type="button" onClick="{{send}}" style="{{sel.sendStyle}}">Send</button>')

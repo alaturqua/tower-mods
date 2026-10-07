@@ -60,6 +60,15 @@
       lane: [[0, 20, 'working']] })
   ]
 
+  // /demo/?long swaps in the long names real repositories have, to check how the page copes.
+  if (/[?&]long\b/.test(location.search)) {
+    var LONG = 'adapt-dbx-dbt-data-transformation'
+    var rename = function (a, branch) { a.repo = LONG; a.repoRoot = ROOT + LONG; a.branch = branch; a.path = ROOT + LONG + '\\.claude\\worktrees\\' + branch.replace(/\//g, '-'); return a }
+    rename(agents[0], 'feature/AZPDP-3014-migrate-staging-models-to-the-new-schema')
+    agents.push(rename(agent({ id: 'l2', repo: LONG, name: 'adapt-dbx-dbt-data-transformation-7c', branch: 'x', doing: 'Waiting for your next prompt', state: 'idle', canSteer: true }), 'feature/AZPDP-2287-add-incremental-models-for-orders'))
+    agents.push(rename(agent({ id: 'l3', repo: LONG, name: 'adapt-dbx-dbt-data-transformation-9e', branch: 'x', doing: 'Reading the codebase', state: 'working' }), 'fix/AZPDP-3041-null-handling-in-customer-dim'))
+  }
+
   function repos() {
     var byRepo = {}
     agents.forEach(function (a) {

@@ -18,9 +18,20 @@ a{color:var(--work)}a:hover{color:var(--work-hover)}
 button{font:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible{outline:2px solid var(--work);outline-offset:2px}
 kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:1px solid var(--edge);border-bottom-width:2px;border-radius:4px;color:var(--text2);background:var(--control)}
+.tw-grip{position:relative;flex:none;width:9px;margin:0 -4px;cursor:col-resize;z-index:3;touch-action:none}
+.tw-grip::after{content:"";position:absolute;top:0;bottom:0;left:4px;width:1px;background:transparent}
+.tw-grip:hover::after,.tw-grip:focus-visible::after,.tw-grip.on::after{left:3px;width:3px;background:var(--work)}
+.tw-clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+@media (max-width: 1100px){.tw-grip{display:none}}
+.tw-app{height:100vh;height:100dvh;overflow:hidden}
+.tw-body{flex-wrap:nowrap}
+.tw-col,.tw-scroll{overflow-y:auto;overscroll-behavior:contain}
+.tw-col>*,.tw-scroll>*{flex-shrink:0}
+nav.tw-col,.tw-aside{box-sizing:border-box}
+@media (max-width: 1100px){.tw-app{height:auto;min-height:100vh;overflow:visible}.tw-body{flex-wrap:wrap}.tw-col,.tw-scroll,.tw-aside{overflow:visible}}
 </style>
 </helmet>
-<div class="tc" data-theme="{{theme.attr}}" style="min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 14px; display: flex; flex-direction: column">
+<div class="tc tw-app" data-theme="{{theme.attr}}" style="background: var(--bg); color: var(--text); font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 14px; display: flex; flex-direction: column">
 
   <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--line); background: var(--panel2)">
     <div style="display: flex; align-items: center; gap: 10px">
@@ -47,7 +58,7 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
     </div>
   </header>
 
-  <div style="display: flex; flex-wrap: wrap; flex: 1; min-height: 0">
+  <div class="tw-body" style="display: flex; flex: 1; min-height: 0">
 
     <sc-if value="{{rail.isCollapsed}}" hint-placeholder-val="{{ false }}">
       <nav aria-label="Repositories" style="flex: 0 0 64px; border-right: 1px solid var(--line); padding: 14px 8px; display: flex; flex-direction: column; align-items: center; gap: 6px; background: var(--rail)">
@@ -61,7 +72,7 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
       </nav>
     </sc-if>
     <sc-if value="{{rail.isOpen}}" hint-placeholder-val="{{ true }}">
-    <nav aria-label="Repositories" style="flex: 1 1 210px; max-width: 260px; min-width: 0; border-right: 1px solid var(--line); padding: 18px 12px; display: flex; flex-direction: column; gap: 4px; background: var(--rail)">
+    <nav class="tw-col" aria-label="Repositories" style="flex: 0 0 {{panels.railWidth}}px; max-width: 100%; min-width: 0; border-right: 1px solid var(--line); padding: 18px 12px; display: flex; flex-direction: column; gap: 4px; background: var(--rail)">
       <div style="display: flex; align-items: center; gap: 6px; padding: 0 4px 8px 10px">
         <span style="flex: 1; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase">Repositories</span>
         <button type="button" onClick="{{rail.foldAll}}" style="min-height: 32px; padding: 0 8px; border-radius: 6px; border: none; background: transparent; color: var(--work); font-size: 12px">{{rail.foldLabel}}</button>
@@ -78,7 +89,7 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
             </sc-if>
             <button type="button" onClick="{{repo.pick}}" style="{{repo.style}}">
               <span style="{{repo.dot}}"></span>
-              <span style="flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{repo.name}}</span>
+              <span class="tw-clamp2" title="{{repo.name}}" style="flex: 1; min-width: 0; text-align: left">{{repo.name}}</span>
               <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted)">{{repo.summary}}</span>
             </button>
           </div>
@@ -88,7 +99,7 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
                 <button type="button" onClick="{{w.pick}}" style="{{w.style}}">
                   <span style="{{w.dot}}"></span>
                   <span style="flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column">
-                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px">⎇ {{w.name}}</span>
+                    <span class="tw-clamp2" title="{{w.name}}" style="font-size: 13px">⎇ {{w.name}}</span>
                     <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted)"><span style="color: var(--ok)">+{{w.add}}</span> <span style="color: var(--bad)">−{{w.del}}</span> {{w.prShort}}</span>
                   </span>
                   <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted)">{{w.count}}</span>
@@ -106,9 +117,10 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
         <div><kbd>X</kbd> select · <kbd>T</kbd> timeline</div>
       </div>
     </nav>
+    <div id="resize-rail" class="{{panels.railGrip}}" role="separator" aria-orientation="vertical" aria-label="Resize the repository panel" aria-valuemin="{{panels.railMin}}" aria-valuemax="{{panels.railMax}}" aria-valuenow="{{panels.railWidth}}" tabindex="0" title="Drag to resize, double-click to reset" onPointerDown="{{panels.railDown}}" onKeyDown="{{panels.railKey}}" onDblClick="{{panels.railReset}}"></div>
     </sc-if>
 
-    <main style="flex: 999 1 600px; min-width: 0; padding: 20px 24px; display: flex; flex-direction: column; gap: 22px">
+    <main class="tw-col" style="flex: 999 1 600px; min-width: 0; padding: 20px 24px; display: flex; flex-direction: column; gap: 22px">
 
       <sc-if value="{{form.open}}" hint-placeholder-val="{{ false }}">
         <form onSubmit="{{form.create}}" aria-label="New workstream" style="display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; border-radius: 14px; background: var(--form-bg); border: 1px solid var(--info-edge)">
@@ -247,7 +259,7 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
             <div style="min-width: 940px">
               <div style="display: grid; grid-template-columns: 40px 1fr; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 600">
                 <span style="padding: 10px 0 10px 16px"></span>
-                <div style="display: grid; grid-template-columns: 18px 1.3fr 96px 2fr 120px 128px 64px 56px; gap: 12px; padding: 10px 16px 10px 0">
+                <div style="display: grid; grid-template-columns: 18px 1.7fr 96px 2fr 120px 128px 64px 56px; gap: 12px; padding: 10px 16px 10px 0">
                   <span></span><span>Agent</span><span>State</span><span>Doing now</span><span>Changes</span><span>Pull request</span><span>Context</span><span>Cost</span>
                 </div>
               </div>
@@ -256,9 +268,9 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
                   <span style="display: flex; align-items: center; justify-content: center; padding-left: 12px">
                     <input type="checkbox" checked="{{a.checked}}" onChange="{{a.toggle}}" aria-label="Select {{a.repo}} {{a.name}}" style="width: 18px; height: 18px; accent-color: var(--work)">
                   </span>
-                  <button type="button" onClick="{{a.pick}}" style="display: grid; grid-template-columns: 18px 1.3fr 96px 2fr 120px 128px 64px 56px; gap: 12px; align-items: center; min-height: 52px; padding: 6px 16px 6px 0; border: none; background: transparent; color: var(--text); text-align: left; width: 100%">
+                  <button type="button" onClick="{{a.pick}}" style="display: grid; grid-template-columns: 18px 1.7fr 96px 2fr 120px 128px 64px 56px; gap: 12px; align-items: center; min-height: 52px; padding: 6px 16px 6px 0; border: none; background: transparent; color: var(--text); text-align: left; width: 100%">
                     <span style="{{a.dot}}"></span>
-                    <span style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"><span style="font-weight: 600">{{a.repo}}</span><span style="color: var(--muted)"> · {{a.name}}</span> <span style="color: var(--muted); font-size: 12px">{{a.kindTag}}</span></span>
+                    <span style="min-width: 0; display: flex; flex-direction: column; gap: 1px" title="{{a.repo}} · {{a.name}} · {{a.branch}}"><span style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{a.repo}} <span style="color: var(--muted); font-size: 12px; font-weight: 400">{{a.kindTag}}</span></span><span style="color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{a.name}} · ⎇ {{a.branch}}</span></span>
                     <span style="{{a.pill}}">{{a.stateLabel}}</span>
                     <span style="min-width: 0; display: flex; flex-direction: column; gap: 2px">
                       <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text2)">{{a.doing}}</span>
@@ -346,7 +358,9 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
       </aside>
     </sc-if>
     <sc-if value="{{detail.isOpen}}" hint-placeholder-val="{{ true }}">
-    <aside aria-label="Selected agent" style="flex: 1 1 360px; max-width: 460px; min-width: 0; border-left: 1px solid var(--line); background: var(--panel2); padding: 20px; display: flex; flex-direction: column; gap: 14px">
+    <div id="resize-detail" class="{{panels.detailGrip}}" role="separator" aria-orientation="vertical" aria-label="Resize the agent panel" aria-valuemin="{{panels.detailMin}}" aria-valuemax="{{panels.detailMax}}" aria-valuenow="{{panels.detailWidth}}" tabindex="0" title="Drag to resize, double-click to reset" onPointerDown="{{panels.detailDown}}" onKeyDown="{{panels.detailKey}}" onDblClick="{{panels.detailReset}}"></div>
+    <aside class="tw-aside" aria-label="Selected agent" style="flex: 0 0 {{panels.detailWidth}}px; max-width: 100%; min-width: 0; border-left: 1px solid var(--line); background: var(--panel2); padding: 0; display: flex; flex-direction: column; overflow: hidden">
+      <div class="tw-scroll" style="flex: none; max-height: 55%; min-height: 0; padding: 20px 20px 0; display: flex; flex-direction: column; gap: 14px">
       <div style="display: flex; justify-content: flex-end; margin: -8px -8px -6px 0">
         <button type="button" onClick="{{detail.toggle}}" aria-label="Collapse the agent panel" aria-expanded="true" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">»</button>
       </div>
@@ -356,7 +370,7 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
           <h2 style="margin: 0; font-size: 18px; font-weight: 600">{{sel.repo}} <span style="color: var(--muted); font-weight: 400">· {{sel.name}}</span></h2>
           <span style="{{sel.pill}}">{{sel.stateLabel}}</span>
         </div>
-        <div style="color: var(--muted); font-size: 12px; font-family: 'IBM Plex Mono', monospace; overflow-wrap: anywhere">{{sel.path}} · ⎇ {{sel.branch}} · {{sel.model}} · {{sel.mode}}</div>
+        <div class="tw-clamp2" title="{{sel.path}} · {{sel.branch}}" style="color: var(--muted); font-size: 12px; font-family: 'IBM Plex Mono', monospace">{{sel.path}} · ⎇ {{sel.branch}} · {{sel.model}} · {{sel.mode}}</div>
         <sc-if value="{{sel.hasHealth}}" hint-placeholder-val="{{ false }}">
           <div style="padding: 8px 10px; border-radius: 8px; background: var(--bad-tint); color: var(--bad); font-size: 13px; font-weight: 600">⚠ {{sel.health}}</div>
         </sc-if>
@@ -367,6 +381,16 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
         </div>
       </div>
 
+
+      </div>
+      <div style="flex: none; padding: 14px 20px 0">
+      <div role="tablist" aria-label="Agent detail" style="display: flex; gap: 4px; border-bottom: 1px solid var(--line)">
+        <sc-for list="{{tabs}}" as="tab" hint-placeholder-count="3">
+          <button type="button" role="tab" aria-selected="{{tab.selected}}" onClick="{{tab.pick}}" style="{{tab.style}}">{{tab.label}}</button>
+        </sc-for>
+      </div>
+      </div>
+      <div class="tw-scroll" style="flex: 1 1 auto; min-height: 0; padding: 14px 20px; display: flex; flex-direction: column; gap: 14px">
       <sc-if value="{{sel.hasPending}}" hint-placeholder-val="{{ true }}">
         <div style="border: 1px solid var(--warn-edge); background: var(--warn-bg); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
           <div style="color: var(--warn); font-size: 13px; font-weight: 600">{{sel.kindLabel}}</div>
@@ -378,12 +402,6 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
           </div>
         </div>
       </sc-if>
-
-      <div role="tablist" aria-label="Agent detail" style="display: flex; gap: 4px; border-bottom: 1px solid var(--line)">
-        <sc-for list="{{tabs}}" as="tab" hint-placeholder-count="3">
-          <button type="button" role="tab" aria-selected="{{tab.selected}}" onClick="{{tab.pick}}" style="{{tab.style}}">{{tab.label}}</button>
-        </sc-for>
-      </div>
 
       <sc-if value="{{tabIs.activity}}" hint-placeholder-val="{{ true }}">
         <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px">
@@ -433,7 +451,9 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
         </sc-if>
       </sc-if>
 
-      <form onSubmit="{{send}}" style="margin-top: auto; display: flex; flex-direction: column; gap: 8px">
+      </div>
+      <div style="flex: none; padding: 12px 20px 16px; border-top: 1px solid var(--line); background: var(--panel2); display: flex; flex-direction: column; gap: 10px">
+      <form onSubmit="{{send}}" style="display: flex; flex-direction: column; gap: 8px">
         <label for="say" style="font-size: 12px; color: var(--muted)">Send to {{sel.repo}} · {{sel.name}}</label>
         <div style="display: flex; gap: 8px">
           <input id="say" value="{{draft}}" onChange="{{typed}}" placeholder="{{sel.placeholder}}" style="flex: 1; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--bg); color: var(--text); font: inherit">
@@ -445,6 +465,7 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:1px 5px;border:
         <button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">Jump to terminal</button>
         <button type="button" onClick="{{pauseSel}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--edge); background: var(--control); color: var(--text)">{{pauseLabel}}</button>
         <button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bad-edge); background: transparent; color: var(--bad-text)">Stop</button>
+      </div>
       </div>
     </aside>
     </sc-if>

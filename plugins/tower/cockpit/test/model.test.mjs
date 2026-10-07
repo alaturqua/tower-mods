@@ -98,5 +98,7 @@ test('a repo removed from the cockpit stays out, renames win, and worktrees keep
 test('totals and model names', () => {
   assert.deepEqual(totalsOf([{ state: 'needs', cost: 1 }, { state: 'working', health: 'x', cost: 0.5 }]), { total: 2, needs: 1, working: 1, done: 0, alerts: 1, cost: 1.5 })
   assert.equal(modelName('claude-haiku-4-5-20251001'), 'Haiku 4.5')
+  assert.equal(modelName('eu.anthropic.claude-sonnet-5-5'), 'Sonnet 5.5')
+  assert.equal(modelName('claude-opus-5-5[1m]'), 'Opus 5.5 1M')
   assert.deepEqual(feedOf(undefined), [])
 })

@@ -98,3 +98,94 @@ test('a real click on Allow answers the request and clears it from the waiting c
   await pause(300)
   assert.equal((await state()).needs, before - 1)
 })
+
+// ---- layout: an app that fits the window, panels you can resize -------------------------
+
+async function open(width, height, query = '') {
+  const tab = await browser.newPage()
+  await tab.setViewport({ width, height })
+  await tab.goto(`http://127.0.0.1:${server.address().port}/demo/${query}`, { waitUntil: 'networkidle0' })
+  await tab.waitForSelector('#say')
+  return tab
+}
+const widths = tab => tab.evaluate(() => ({
+  rail: Math.round(document.querySelector('nav[aria-label=Repositories]').getBoundingClientRect().width),
+  detail: Math.round(document.querySelector('aside[aria-label="Selected agent"]').getBoundingClientRect().width),
+}))
+async function drag(tab, id, dx) {
+  const box = await (await tab.$(id)).boundingBox()
+  const x = box.x + box.width / 2, y = box.y + box.height / 2
+  await tab.mouse.move(x, y)
+  await tab.mouse.down()
+  await tab.mouse.move(x + dx, y, { steps: 8 })
+  await tab.mouse.up()
+  await pause(150)
+}
+
+test('the page fits the window: the send box stays in view and each panel scrolls on its own', { skip }, async () => {
+  const tab = await open(1280, 720, '?long')
+  const m = await tab.evaluate(() => {
+    const scrolls = el => el.scrollHeight > el.clientHeight + 1
+    return {
+      pageOverflow: document.scrollingElement.scrollHeight - innerHeight,
+      sayBottom: document.getElementById('say').getBoundingClientRect().bottom,
+      railScrolls: scrolls(document.querySelector('nav[aria-label=Repositories]')),
+      mainScrolls: scrolls(document.querySelector('main')),
+    }
+  })
+  assert.ok(m.pageOverflow <= 0, 'the page itself does not scroll')
+  assert.ok(m.sayBottom <= 720, `the send box is inside the window (bottom ${m.sayBottom})`)
+  assert.ok(m.railScrolls && m.mainScrolls, 'the rail and the middle scroll inside themselves')
+  await tab.close()
+})
+
+test('long repo and branch names wrap, and the full name is the tooltip', { skip }, async () => {
+  const tab = await open(1280, 720, '?long')
+  const names = await tab.evaluate(() => [...document.querySelectorAll('nav[aria-label=Repositories] [title]')].map(el => ({ title: el.title, text: el.textContent.trim(), clipped: el.scrollHeight > el.clientHeight + 1 })))
+  const branch = names.find(n => n.title.startsWith('feature/AZPDP-3014'))
+  assert.ok(branch, 'the long branch is listed with its full name as the tooltip')
+  assert.equal(branch.title.length > 40, true)
+  assert.ok(names.every(n => n.text.length > 0))
+  await tab.close()
+})
+
+test('dragging a grip resizes its panel, a reload keeps it, double-click resets it', { skip }, async () => {
+  const tab = await open(1280, 720)
+  const start = await widths(tab)
+  await drag(tab, '#resize-rail', 120)
+  assert.equal((await widths(tab)).rail, start.rail + 120)
+  await drag(tab, '#resize-detail', -50)
+  assert.equal((await widths(tab)).detail, start.detail + 50)
+  await tab.reload({ waitUntil: 'networkidle0' })
+  await tab.waitForSelector('#say')
+  assert.deepEqual(await widths(tab), { rail: start.rail + 120, detail: start.detail + 50 })
+  await tab.click('#resize-rail', { count: 2 })
+  await pause(150)
+  assert.equal((await widths(tab)).rail, 300)
+  await tab.close()
+})
+
+test('a panel stops at its limits and always leaves room for the middle', { skip }, async () => {
+  const tab = await open(1280, 720)
+  await drag(tab, '#resize-rail', 900)
+  const w = await widths(tab)
+  assert.ok(w.rail <= 560, `the rail stays under its maximum (${w.rail})`)
+  const main = await tab.evaluate(() => Math.round(document.querySelector('main').getBoundingClientRect().width))
+  assert.ok(main >= 340, `the middle keeps its room (${main})`)
+  await drag(tab, '#resize-rail', -900)
+  assert.equal((await widths(tab)).rail, 220)
+  await tab.close()
+})
+
+test('arrow keys resize a focused grip, Shift takes a bigger step', { skip }, async () => {
+  const tab = await open(1280, 720)
+  const start = (await widths(tab)).rail
+  await tab.focus('#resize-rail')
+  await tab.keyboard.press('ArrowRight')
+  await pause(100)
+  assert.equal((await widths(tab)).rail, start + 16)
+  await tab.keyboard.down('Shift'); await tab.keyboard.press('ArrowRight'); await tab.keyboard.up('Shift')
+  await pause(100)
+  assert.equal((await widths(tab)).rail, start + 16 + 64)
+  await tab.close()
+})
