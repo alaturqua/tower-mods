@@ -2,6 +2,11 @@
 
 Everything notable in Tower (the plugin and its site), newest first. Generated from the commit history by [git-cliff](https://git-cliff.org).
 
+## [0.4.2](https://github.com/alaturqua/tower-mods/releases/tag/v0.4.2) - 2026-10-07
+
+### Changed
+
+- Make the pane's key line real buttons, keep rows on one line, keep the id on long duplicate names ([bc8cc32](https://github.com/alaturqua/tower-mods/commit/bc8cc322f850201665e6d69f063a2edd269dcf5c))
 ## [0.4.1](https://github.com/alaturqua/tower-mods/releases/tag/v0.4.1) - 2026-10-07
 
 ### Changed
