@@ -403,19 +403,18 @@ export const registerPane: Register = (on, options) => {
         {target && (
           <Box borderStyle="round" borderColor={focused ? 'suggestion' : undefined} borderDimColor={!focused} paddingX={1}>
             <Input key={`say-${target.id}`} label={`To ${nameOf(target)}`}
-              placeholder={target.pending?.kind === 'question' && target.remoteAnswers ? 'Type an answer' : 'Type a message or /command'} submitLabel="send"
+              placeholder={target.pending?.kind === 'question' && target.remoteAnswers ? 'Type an answer, Enter sends' : 'Type a message or /command, Enter sends'} submitLabel="send"
               onSubmit={text => { if (text.trim()) void sendText($, target, text.trim()).then(toast) }} />
           </Box>
         )}
 
         <Box gap={1} flexWrap="wrap">
-          <Text dimColor>Enter: send ·</Text>
-          <Button key="prev" hotkey="k" plain onPress={() => move(-1)}>up</Button>
-          <Button key="next" hotkey="j" plain onPress={() => move(1)}>down</Button>
-          {target && <Button key="jump" hotkey="g" plain onPress={() => void jump($, target).then(toast)}>jump</Button>}
-          <Button key="new" hotkey="n" plain onPress={() => void update($, view, () => 'launch')}>new</Button>
-          <Button key="cockpit" hotkey="o" plain onPress={() => void startCockpit($, '--open').then(toast)}>cockpit</Button>
-          <Button key="refresh" hotkey="r" plain onPress={() => refresh($)}>refresh</Button>
+          <Button key="prev" hotkey="k" onPress={() => move(-1)}>↑ Prev (k)</Button>
+          <Button key="next" hotkey="j" onPress={() => move(1)}>↓ Next (j)</Button>
+          {target && <Button key="jump" hotkey="g" onPress={() => void jump($, target).then(toast)}>Jump (g)</Button>}
+          <Button key="new" hotkey="n" onPress={() => void update($, view, () => 'launch')}>New session (n)</Button>
+          <Button key="cockpit" hotkey="o" onPress={() => void startCockpit($, '--open').then(toast)}>Open cockpit (o)</Button>
+          <Button key="refresh" hotkey="r" onPress={() => refresh($)}>Refresh (r)</Button>
         </Box>
       </Box>
     )
