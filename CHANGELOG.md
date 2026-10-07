@@ -2,6 +2,17 @@
 
 Everything notable in Tower (the plugin and its site), newest first. Generated from the commit history by [git-cliff](https://git-cliff.org).
 
+## [0.3.1](https://github.com/alaturqua/tower-mods/releases/tag/v0.3.1) - 2026-10-07
+
+### Changed
+
+- Lift the demo video's captions above the cockpit's own toasts ([e1d6a27](https://github.com/alaturqua/tower-mods/commit/e1d6a27129c070a7a2326a1ef9cba4ae02ce6bb8))
+- Make the cockpit an app that fits the window, with resizable panels ([7a5cbdd](https://github.com/alaturqua/tower-mods/commit/7a5cbdd444966697ac8ab712b790a5da5fa32a5c))
+- Record the design check's exception for the cockpit's three edge-to-edge containers ([f0315dc](https://github.com/alaturqua/tower-mods/commit/f0315dc5142c38c0a1b8b28ce6e50e0e3583115e))
+
+### Fixed
+
+- Fix typing, focus and Allow in the cockpit page and the site demo ([c46918b](https://github.com/alaturqua/tower-mods/commit/c46918bee567756f71da14abf38a8238b6c71d47))
 ## [0.3.0](https://github.com/alaturqua/tower-mods/releases/tag/v0.3.0) - 2026-10-07
 
 ### Added
