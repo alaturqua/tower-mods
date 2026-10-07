@@ -204,3 +204,8 @@ kbd { font-family: var(--mono); font-size: 0.82em; padding: 1px 6px; border: 1px
 .setup { margin: 20px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
 .setup li { color: var(--text2); font-size: 16px; }
 .setup b { color: var(--text); }
+
+#help h3 { margin: 32px 0 8px; font-size: 20px; }
+#help p { margin: 0 0 12px; max-width: 760px; color: var(--text2); }
+#help .code { margin: 0 0 16px; max-width: 760px; }
+#help .setup { margin: 0 0 20px; }

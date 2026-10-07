@@ -40,6 +40,7 @@
       <a href="#answers">Remote answers</a>
       <a href="#terminal">Terminal</a>
       <a href="#install">Install</a>
+      <a href="#help">Help</a>
     </nav>
     <a class="rail-link" href="https://github.com/alaturqua/tower-mods">GitHub</a>
     <div class="theme-switch" role="group" aria-label="Theme">
@@ -188,6 +189,46 @@
         <li><b>Launching agents:</b> Claude Code must have been trusted in a repository once (open Claude Code there and accept the prompt) before the cockpit can start agents in it.</li>
         <li><b>Early access:</b> Claude Code mods are new; the API can change between releases. See the <a href="https://github.com/alaturqua/tower-mods/blob/main/CHANGELOG.md">changelog</a>.</li>
       </ul>
+    </section>
+
+    <section id="help" class="band" aria-labelledby="help-title">
+      <h2 id="help-title">Help: update, restart, stop</h2>
+      <p class="sub">The cockpit is a small server that keeps running after the session that started it. Updating the plugin doesn't touch it, so it needs one step to pick up a new version.</p>
+
+      <h3>Update</h3>
+      <p>Update the plugin, then reload it in every open session:</p>
+      <div class="code">
+        <button type="button" class="copy" data-copy="help-update">Copy</button>
+<pre id="help-update"><code>claude plugin marketplace update tower &amp;&amp; claude plugin update tower</code></pre>
+      </div>
+      <p>Then type <code>/reload-plugins</code> in your sessions and <code>/cockpit</code> in any of them. A cockpit of an older version is replaced by the new one on its own, and your open browser tab keeps working.</p>
+
+      <h3>Restart or stop</h3>
+      <p>In any session:</p>
+      <div class="code">
+        <button type="button" class="copy" data-copy="help-slash">Copy</button>
+<pre id="help-slash"><code>/cockpit restart
+/cockpit stop</code></pre>
+      </div>
+      <p>From a shell, with the plugin folder in place of the placeholder:</p>
+      <div class="code">
+        <button type="button" class="copy" data-copy="help-shell">Copy</button>
+<pre id="help-shell"><code>node "&lt;plugin folder&gt;/cockpit/server.mjs" --restart
+node "&lt;plugin folder&gt;/cockpit/server.mjs" --stop</code></pre>
+      </div>
+      <p>Stopping ends only the server. Your agents keep running and keep their status files; the cockpit finds them again when it starts.</p>
+
+      <h3>When something is off</h3>
+      <ul class="setup">
+        <li><b>The page says forbidden:</b> open it through <code>/cockpit</code>, which carries the link's token. The link is also in <code>~/.claude/tower/cockpit.json</code>.</li>
+        <li><b>The port is taken:</b> start it on another one with <code>--port 4748</code>, or set <code>TOWER_COCKPIT_PORT</code>.</li>
+        <li><b>A prompt stays "Queued":</b> that session started before Tower was installed. Restart it or run <code>/reload-plugins</code> in it.</li>
+        <li><b>A launch fails:</b> open Claude Code in that repository once and accept the trust prompt.</li>
+        <li><b>No pull requests show:</b> install the GitHub CLI and run <code>gh auth login</code>.</li>
+        <li><b>The page looks old after an update:</b> run <code>/cockpit restart</code>, then reload the tab.</li>
+        <li><b>Uninstall:</b> <code>/cockpit stop</code>, then <code>claude plugin uninstall tower</code>.</li>
+      </ul>
+      <p>Settings are in <code>/config</code> under the plugin, and the <a href="https://github.com/alaturqua/tower-mods#settings">README lists each one</a>. Still stuck? <a href="https://github.com/alaturqua/tower-mods/issues">Open an issue</a> with your version from <code>claude plugin list</code>.</p>
     </section>
   </main>
 
