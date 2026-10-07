@@ -2,6 +2,11 @@
 
 Everything notable in Tower (the plugin and its site), newest first. Generated from the commit history by [git-cliff](https://git-cliff.org).
 
+## [0.4.3](https://github.com/alaturqua/tower-mods/releases/tag/v0.4.3) - 2026-10-07
+
+### Changed
+
+- Restyle the tower pane after Agents View: Needs input, Working, Completed, and a one-line key footer ([496f97b](https://github.com/alaturqua/tower-mods/commit/496f97b8afc41a9edd8f6b857e09fe1394780cab))
 ## [0.4.2](https://github.com/alaturqua/tower-mods/releases/tag/v0.4.2) - 2026-10-07
 
 ### Changed

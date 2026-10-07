@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "A cockpit for every Claude Code agent across your repos.",
-    "version": "0.4.2"
+    "version": "0.4.3"
   },
   "plugins": [
     {
       "name": "tower",
       "source": "./plugins/tower",
       "description": "A web cockpit and a /tower pane over every Claude Code agent across your repos: see who needs you, approve and answer, send prompts and slash commands, start workstreams in git worktrees, and watch changes and PRs. Plus desktop notifications and a status line.",
-      "version": "0.4.2",
+      "version": "0.4.3",
       "category": "productivity",
       "keywords": [
         "cockpit",
