@@ -287,7 +287,12 @@ export const registerPane: Register = (on, options) => {
     const room = props.placement === 'dock' ? Math.max(0, (props.scroll?.bodyRows ?? 0) - 1) : 0
 
     // Two sessions in one folder share a label; the first letters of the id tell them apart.
-    const nameOf = (s: TowerSession) => (list.filter(o => o.label === s.label).length > 1 ? `${s.label} #${s.id.slice(0, 4)}` : s.label) + (s.kind === 'background' ? ' (bg)' : '')
+    const labelWidth = width >= 120 ? 30 : cols.labelWidth
+    const nameOf = (s: TowerSession, room = 200) => {
+      const tag = (list.filter(o => o.label === s.label).length > 1 ? ` #${s.id.slice(0, 4)}` : '') + (s.kind === 'background' ? ' (bg)' : '')
+      const label = s.label.length + tag.length > room ? s.label.slice(0, Math.max(4, room - tag.length - 1)) + '…' : s.label
+      return label + tag
+    }
     const pick = (s: TowerSession) => void update($, selected, () => s.id)
     const move = (step: number) => {
       if (!list.length) return
@@ -331,9 +336,9 @@ export const registerPane: Register = (on, options) => {
         <Box key={`row-${s.id}`} gap={1}>
           <Text color={isChosen ? 'suggestion' : undefined} bold>{isChosen ? '▶' : ' '}</Text>
           <Text color={COLOR[s.state]} dimColor={s.state === 'idle'}>{MARK[s.state]}</Text>
-          <Button key={`pick-${s.id}`} plain onPress={() => pick(s)}>{nameOf(s).slice(0, cols.labelWidth).padEnd(cols.labelWidth)}</Button>
+          <Button key={`pick-${s.id}`} plain onPress={() => pick(s)}>{nameOf(s, labelWidth).padEnd(labelWidth)}</Button>
           <Box flexGrow={1} flexShrink={1}>{cols.showState && <Text dimColor={!isChosen} wrap="truncate-end">{what.replace(/\s+/g, ' ')}</Text>}</Box>
-          <Text dimColor>{ago(s.updatedAt, now)}</Text>
+          <Box flexShrink={0}><Text dimColor>{ago(s.updatedAt, now)}</Text></Box>
         </Box>
       )
     }
@@ -399,13 +404,12 @@ export const registerPane: Register = (on, options) => {
         )}
 
         <Box gap={1} flexWrap="wrap">
-          <Button key="prev" hotkey="k" plain onPress={() => move(-1)}>k ↑</Button>
-          <Button key="next" hotkey="j" plain onPress={() => move(1)}>j ↓</Button>
-          <Text dimColor>pick ·</Text>
-          {target && <Button key="jump" hotkey="g" plain onPress={() => void jump($, target).then(toast)}>g jump</Button>}
-          <Button key="new" hotkey="n" plain onPress={() => void update($, view, () => 'launch')}>n new</Button>
-          <Button key="cockpit" hotkey="o" plain onPress={() => void startCockpit($, '--open').then(toast)}>o cockpit</Button>
-          <Button key="refresh" hotkey="r" plain onPress={() => refresh($)}>r refresh</Button>
+          <Button key="prev" hotkey="k" onPress={() => move(-1)}>↑ Prev (k)</Button>
+          <Button key="next" hotkey="j" onPress={() => move(1)}>↓ Next (j)</Button>
+          {target && <Button key="jump" hotkey="g" onPress={() => void jump($, target).then(toast)}>Jump (g)</Button>}
+          <Button key="new" hotkey="n" onPress={() => void update($, view, () => 'launch')}>New session (n)</Button>
+          <Button key="cockpit" hotkey="o" onPress={() => void startCockpit($, '--open').then(toast)}>Open cockpit (o)</Button>
+          <Button key="refresh" hotkey="r" onPress={() => refresh($)}>Refresh (r)</Button>
         </Box>
       </Box>
     )
