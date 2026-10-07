@@ -34,13 +34,18 @@
       <img src="favicon.svg" alt="" width="28" height="28">
       <span>Tower</span>
     </a>
-    <nav class="rail-nav" aria-label="Sections">
+    <button class="rail-toggle" type="button" aria-expanded="false" aria-controls="rail-nav">
+      <span class="rail-current">Sections</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+    </button>
+    <nav class="rail-nav" id="rail-nav" aria-label="Sections">
       <a href="#demo">Demo</a>
       <a href="#cockpit">Cockpit</a>
-      <a href="#answers">Remote answers</a>
+      <a href="#answers" data-short="Answers">Remote answers</a>
       <a href="#terminal">Terminal</a>
       <a href="#install">Install</a>
       <a href="#help">Help</a>
+      <a class="rail-nav-extra" href="https://github.com/alaturqua/tower-mods">GitHub</a>
     </nav>
     <a class="rail-link" href="https://github.com/alaturqua/tower-mods">GitHub</a>
     <div class="theme-switch" role="group" aria-label="Theme">
@@ -331,6 +336,36 @@ node "&lt;plugin folder&gt;/cockpit/server.mjs" --stop</code></pre>
       })
       document.addEventListener('tower-theme', tell)
       fit()
+    })()
+
+    // The rail on phones: a breadcrumb naming the section in view, which opens into the full list.
+    ;(function () {
+      var rail = document.querySelector('.rail')
+      var toggle = rail.querySelector('.rail-toggle')
+      var label = toggle.querySelector('.rail-current')
+      var links = Array.prototype.slice.call(rail.querySelectorAll('.rail-nav a[href^="#"]'))
+      function setOpen(open) {
+        rail.classList.toggle('open', open)
+        toggle.setAttribute('aria-expanded', String(open))
+      }
+      toggle.addEventListener('click', function () { setOpen(!rail.classList.contains('open')) })
+      rail.querySelector('.rail-nav').addEventListener('click', function (e) { if (e.target.closest('a')) setOpen(false) })
+      document.addEventListener('click', function (e) { if (!rail.contains(e.target)) setOpen(false) })
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && rail.classList.contains('open')) { setOpen(false); toggle.focus() }
+      })
+      function current() {
+        var line = toggle.getBoundingClientRect().bottom + 120
+        var here = null
+        links.forEach(function (a) {
+          var section = document.querySelector(a.getAttribute('href'))
+          if (section && section.getBoundingClientRect().top <= line) here = a
+        })
+        links.forEach(function (a) { if (a === here) a.setAttribute('aria-current', 'location'); else a.removeAttribute('aria-current') })
+        label.textContent = here ? here.dataset.short || here.textContent : 'Sections'
+      }
+      window.addEventListener('scroll', current, { passive: true })
+      current()
     })()
 
     document.querySelectorAll('button.copy, button.copy-inline').forEach(function (btn) {
