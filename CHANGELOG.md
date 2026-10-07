@@ -2,6 +2,11 @@
 
 Everything notable in Tower (the plugin and its site), newest first. Generated from the commit history by [git-cliff](https://git-cliff.org).
 
+## [0.4.1](https://github.com/alaturqua/tower-mods/releases/tag/v0.4.1) - 2026-10-07
+
+### Changed
+
+- Pin the tower pane's send box to the bottom when docked ([091e747](https://github.com/alaturqua/tower-mods/commit/091e747246569916255b1958f9ed930df27da908))
 ## [0.4.0](https://github.com/alaturqua/tower-mods/releases/tag/v0.4.0) - 2026-10-07
 
 ### Added
