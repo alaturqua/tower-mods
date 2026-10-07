@@ -1,15 +1,13 @@
-# tower
+# Tower
 
-A Claude Code plugin for running many sessions across many repos from one place, like a control tower over its flights.
+A Claude Code plugin: one cockpit for every Claude Code agent on your machine, across all your repos. See who needs you, approve and answer, send prompts and slash commands, start agents in their own git worktrees, and watch what each one changes.
 
-Site: **[alaturqua.github.io/tower-mods](https://alaturqua.github.io/tower-mods/)**
+**[Try the live demo](https://alaturqua.github.io/tower-mods/demo/)** (in your browser, on sample data) · [Site](https://alaturqua.github.io/tower-mods/) · [Changelog](CHANGELOG.md)
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="site/images/approve-light.webp">
-  <img src="site/images/approve-dark.webp" alt="The cockpit mockup's Needs you cards: allowing an agent's git push and answering another agent's question">
+  <img src="site/images/approve-dark.webp" alt="The cockpit's Needs you cards: allowing an agent's git push and answering another agent's question">
 </picture>
-
-*Above: the cockpit, the web dashboard in design, as a mockup with sample data. **[Try it live](https://alaturqua.github.io/tower-mods/demo/)**: approve, switch views, start a workstream, fold the panels. What ships today is the `/tower` pane below.*
 
 ## Install
 
@@ -17,57 +15,38 @@ Site: **[alaturqua.github.io/tower-mods](https://alaturqua.github.io/tower-mods/
 claude plugin marketplace add alaturqua/tower-mods && claude plugin install tower@tower
 ```
 
-Install it everywhere: in each session it reports what that session is doing, and in whichever session you run `/tower` it becomes your control pane. Mods draw nothing in the VS Code chat panel; run Claude Code in a terminal (VS Code's integrated terminal works) or the desktop app's Code tab.
+Install it everywhere: every session then reports to the cockpit and can be steered from it. Sessions that were already running pick it up after a restart or `/reload-plugins`.
 
-## What you get
+Then type **`/cockpit`** in any session. It starts the cockpit in the background and opens your browser.
 
-| Part | What it does |
+Needs Node.js 18 or newer for the cockpit, and the GitHub CLI (`gh`) for pull requests. Mods draw nothing in the VS Code chat panel; for `/tower` and the status line, run Claude Code in a terminal (VS Code's integrated terminal works) or the desktop app's Code tab.
+
+## The cockpit
+
+| Area | What it does |
 | --- | --- |
-| The `/tower` pane | Every running session on this machine, across repos, sorted so whoever needs you is on top. Pick one to send it a prompt, approve or deny what it waits on, answer its question, or jump to its window. Launch a new background session in any repo with a task. |
-| Notifications | A desktop notification when a session needs you: a permission prompt, an `AskUserQuestion`, a long turn finishing. Windows toast, macOS `osascript`, Linux `notify-send`. Each session also keeps a status file in `~/.claude/tower/sessions/` for the tower to read, and receives the tower's prompts and answers. |
-| Status line | `2 need you · tower-mods ⎇ main* · Opus 5.5 · high · auto · ctx 42% · $1.23`: other sessions waiting on you (once `/tower` has run in this session), folder, git branch (`*` when there are uncommitted changes), model, effort, permission mode, context fill and session cost. |
+| **Needs you** | Permission requests and questions as cards, oldest first: the agent's reason, a diff for edits, a badge on risky commands (pushes, deletes, deploys). Allow, deny or answer with a click, or `A` / `D` / `1`–`4`. |
+| **Fleet** | Every session as a table, cards or a timeline (your choice is remembered): state, what it's doing, lines changed, PR and CI, context fill, cost. Stuck, looping and context-full agents are flagged. |
+| **Repositories and workstreams** | The left rail groups sessions by repo and git worktree. **+ New workstream** starts a background agent in a fresh worktree on its own branch (`claude --bg -w`). The ⋯ menus rename or remove repos and worktrees. |
+| **The selected agent** | Its live activity, changed files, and pull request (squash-merge when it's green). Send it a prompt, or type `/` for its slash commands. Jump to its window, or stop it if it runs in the background. |
 
-## Using the tower
+Select several agents to send them all the same prompt, or stop them. Everything follows System, Light or Dark.
 
-Start sessions as you always do, one per repo. In the one you want as your tower, run `/tower`:
+### How it works and what it trusts
 
-```text
-Tower · 4 sessions · 1 needs you
-▸! dbt-platform       needs-input Bash: git push origin main              2m
- ~ web                working     Running tests                           10s
- ✓ infra              done        Migrated 12 models.                     5m
- · api (bg)           idle                                                1h
-──────────────────────────────────────────────────────────────────────────────
-dbt-platform-2b · D:\Projects\dbt-platform · interactive
-Needs approval: Bash git push origin main
-[ Allow ] [ Deny ]
-You › migrate the staging models and push
-Ran dbt build on 12 models; all passed.
-Ready to push to origin/main.
-Send to dbt-platform…
-[ Jump ] [ New session ] [ Refresh ]
-```
+- **Local only.** The cockpit is a small Node server inside the plugin (`plugins/tower/cockpit`, no dependencies). It listens on `127.0.0.1` only. The link `/cockpit` opens carries a one-time token that the browser trades for a same-site cookie. The server refuses other host names and requests from other web pages.
+- **What it reads:** `claude agents --json` for the live sessions, each session's status file in `~/.claude/tower/sessions/`, `git` in each working folder, and `gh` for pull requests.
+- **How it steers:** prompts, slash commands and answers are appended to `~/.claude/tower/inbox/<session>.jsonl`. The plugin in that session picks them up within a second and runs them as if typed there. The cockpit shows "Queued" until it has. A session started before installing can't receive until it restarts, and the cockpit says so.
+- **Answering from the cockpit:** a permission dialog belongs to its terminal. So by default only agents the cockpit launched send their permission prompts and questions to the cockpit. The agent is told to wait, your Allow arrives as its next prompt, and that exact call runs once. For a session you started by hand, the cockpit shows what it waits on and **Jump** brings its window forward. Set `remoteAnswers` to `always` to answer every session from the cockpit.
+- **Launching agents:** Claude Code must have been trusted in a repository once (open Claude Code there and accept the prompt) before the cockpit can start agents in it.
 
-Rows are colored by state in your theme's colors: needs you in the warning color, working in the accent, done in green, idle dim. Below the list, the selected session shows in full: what it waits on (never cut off), the last thing you asked it, and the end of its last answer, as many lines as the pane has room for. In a narrow pane the rows drop the message column first, then the state column, and the buttons wrap.
+## In the terminal
 
-| Key | Does |
-| --- | --- |
-| Tab / arrows, Enter | Move to a session's name and select it |
-| `a` / `d` | Allow or deny the pending permission |
-| `1`–`4` | Pick an answer to the pending question (or type one) |
-| `j` | Jump: focus the session's window, or attach to a background session in a new Windows Terminal tab |
-| `n` | New session: pick a repo, type a task; it starts in the background with `claude --bg` |
-| `r` | Refresh now (it refreshes every 3 seconds anyway) |
+The same plugin works without the browser:
 
-Typing in the field and pressing Enter sends a prompt to the selected session. It runs as soon as that session is idle, as if you had typed it there.
-
-The same actions work as commands: `/tower list`, `/tower send <session> <prompt>`, `/tower launch <repo path> <task>`, `/tower add <repo path>` (remembers a repo for the New session picker).
-
-### Who can be answered from the tower
-
-A permission dialog in a terminal belongs to that terminal, so by default only sessions the tower launched send their permission prompts and questions to the tower. The model is told to wait, your Allow arrives as a "retry" prompt, and the approved call runs once. For a session you started by hand, the tower shows what it waits on and `j` takes you there. Set `remoteAnswers` to `always` to steer every session from the tower.
-
-Sending prompts works with every session, whether it runs this plugin or not.
+- **`/tower`** opens a pane beside your conversation with every session. Allow, deny, answer, send a prompt, jump, or launch a background agent. The same actions work as commands: `/tower list`, `/tower send <session> <prompt>`, `/tower launch <repo path> <task>`.
+- **Notifications:** a desktop notification when a session needs you (Windows toast, macOS `osascript`, Linux `notify-send`).
+- **Status line:** `1 needs you · tower-mods ⎇ main* · Opus 5.5 · high · auto · ctx 42% · $1.23`: other sessions waiting on you, then folder, branch (`*` when there are uncommitted changes), model, effort, permission mode, context fill and cost.
 
 ## Settings
 
@@ -79,37 +58,52 @@ Change these in `/config` or under `pluginConfigs.tower.options` in `~/.claude/s
 | `notifyOnDone` | `true` | Notify when a turn ends after `minTurnSeconds` |
 | `minTurnSeconds` | `30` | Shorter turns end quietly |
 | `notifyOnIdle` | `false` | Also notify on Claude Code's "still waiting" reminders |
-| `remoteAnswers` | `launched` | Which sessions send permission prompts and questions to the tower: `launched`, `always`, `never` |
-| `pollSeconds` | `3` | How often the tower refreshes the session list, once `/tower` has run in this session |
+| `remoteAnswers` | `launched` | Which sessions send permission prompts and questions to the cockpit and tower: `launched`, `always`, `never` |
+| `inboxSeconds` | `1` | How often a session checks for prompts and answers from the cockpit; `0` turns it off |
+| `pollSeconds` | `3` | How often `/tower` refreshes, once it has run in a session |
 | `statusLine` | `true` | The status line at all |
-| `showBranch` | `true` | Git branch after the folder |
-| `showContext` | `true` | Context window fill |
-| `showCost` | `true` | Session cost, where the account reports one |
+| `showBranch`, `showContext`, `showCost` | `true` | Parts of the status line |
 | `statusSeconds` | `5` | How often branch, context and cost are re-read between turns |
 
-The status line learns the permission mode and effort when Claude Code reports them: on each prompt, each tool call and the end of each turn. A Shift+Tab mode switch therefore shows up with your next prompt, and the mode is blank in a new session until the first one.
+The status line learns the permission mode and effort when Claude Code reports them (each prompt, tool call and turn end), so a Shift+Tab switch shows with your next prompt.
 
 ## Developing
 
-Add this working copy as a marketplace. Claude Code then reads the plugin straight from the folder instead of an installed copy:
+Add this working copy as a marketplace. Claude Code then reads the plugin straight from the folder:
 
 ```sh
 claude plugin marketplace add D:\Projects\tower-mods
 claude plugin install tower@tower
 ```
 
-Edit, then run `/reload-plugins` in a session. For hot reload on save, start a session with `claude --plugin-dir D:\Projects\tower-mods\plugins\tower` instead.
+Edit, then `/reload-plugins` in a session, or start one with `claude --plugin-dir D:\Projects\tower-mods\plugins\tower` for hot reload. Run the cockpit from the folder with `node plugins/tower/cockpit/server.mjs --open`.
 
-The plugin is one hooks module (`hooks/register.ts`) that registers three parts, each in its own file: `beacon.ts` (status file, notifications, receiving the tower), `pane.tsx` (the `/tower` pane and command) and `strip.ts` (the status line). A part never passes `$` to another file; the engine refuses that.
+The plugin is one hooks module (`hooks/register.ts`) with three parts, each in its own file:
 
-Check it before pushing:
+- `beacon.ts`: status file, notifications, inbox, remote answers;
+- `pane.tsx`: `/tower` and `/cockpit`;
+- `strip.ts`: the status line.
+
+A part never passes `$` to another file; the engine refuses that.
+
+The cockpit's page is built from the approved design: `cockpit/web/mockup.dc.html` plus `cockpit/web/logic.js`, through `node cockpit/web/build.mjs`. The build writes the cockpit's page and the site's live demo, which runs the same page against `site/demo/sample.js`.
 
 ```sh
 claude plugin validate plugins/tower
 claude plugin test plugins/tower
+node --test plugins/tower/cockpit/test/model.test.mjs plugins/tower/cockpit/test/server.test.mjs plugins/tower/cockpit/test/actions.test.mjs
 ```
 
-The design is in [docs/superpowers/specs/2026-10-06-tower-design.md](docs/superpowers/specs/2026-10-06-tower-design.md).
+CI runs all of these on every push.
+
+### Releasing
+
+```sh
+node scripts/release.mjs 0.3.0
+git push --follow-tags
+```
+
+The script bumps the version in both manifests, regenerates `CHANGELOG.md` with [git-cliff](https://git-cliff.org), commits and tags. The pushed tag publishes a GitHub release with the notes for that version.
 
 ## License
 

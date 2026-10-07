@@ -2,6 +2,8 @@
 
 Date: 2026-10-06. Status: approved in chat (approach 1), details decided by Claude on the user's "do all".
 
+Update, later: the web cockpit this spec's first draft left for later is built (`plugins/tower/cockpit`: a zero-dependency Node server on 127.0.0.1 behind a one-time token, a per-session inbox that beacon reads, workstreams through `claude --bg -w`). Its design and security model are in the README. Pause/resume and cost caps from the mockup were left out: Claude Code can pause neither a session nor spend.
+
 Update, same day: beacon, tower and the status line (strip) now ship as one plugin, `tower`, installed in one line. "beacon" and "tower" below name its parts (`hooks/beacon.ts`, `hooks/pane.tsx`), not separate plugins. The pane polls only in a session where `/tower` has run, and its "N need you" count leads the status line, since a plugin has one status entry.
 
 ## Goal
