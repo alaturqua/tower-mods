@@ -209,3 +209,9 @@ kbd { font-family: var(--mono); font-size: 0.82em; padding: 1px 6px; border: 1px
 #help p { margin: 0 0 12px; max-width: 760px; color: var(--text2); }
 #help .code { margin: 0 0 16px; max-width: 760px; }
 #help .setup { margin: 0 0 20px; }
+.os-switch { display: inline-flex; gap: 2px; padding: 3px; margin: 0 0 12px; border-radius: 10px; background: var(--raise); border: 1px solid var(--line); }
+.os-switch button { min-height: 34px; padding: 0 12px; border: none; border-radius: 7px; background: transparent; color: var(--muted); font: inherit; font-size: 14px; cursor: pointer; }
+.os-switch button:hover { color: var(--text); }
+.os-switch button[aria-pressed="true"] { background: var(--panel); color: var(--text); box-shadow: 0 0 0 1px var(--line); }
+.intro .os-switch { margin: 14px 0 0; }
+.os-note { max-width: 760px; margin: 12px 0 0; color: var(--muted); font-size: 14px; }

@@ -15,6 +15,12 @@ A Claude Code plugin: one cockpit for every Claude Code agent on your machine, a
 claude plugin marketplace add alaturqua/tower-mods && claude plugin install tower@tower
 ```
 
+Windows PowerShell 5 has no `&&`; there, chain them with a semicolon (Command Prompt and PowerShell 7 take the line above as it is):
+
+```powershell
+claude plugin marketplace add alaturqua/tower-mods; claude plugin install tower@tower
+```
+
 Install it everywhere: every session then reports to the cockpit and can be steered from it. Sessions that were already running pick it up after a restart or `/reload-plugins`.
 
 Then type **`/cockpit`** in any session. It starts the cockpit in the background and opens your browser.

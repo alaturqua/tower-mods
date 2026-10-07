@@ -65,9 +65,10 @@
       <h1 id="hero-title">One cockpit for every Claude&nbsp;Code&nbsp;agent.</h1>
       <p class="lede">Five repos, a dozen agents, one of them stuck on a permission prompt in a terminal you can't find. Tower shows every session in one place: who needs you, what each one is doing and changing, and a box to steer it.</p>
       <div class="install-line">
-        <code id="hero-install">claude plugin marketplace add alaturqua/tower-mods &amp;&amp; claude plugin install tower@tower</code>
+        <code id="hero-install" data-cmd="install">claude plugin marketplace add alaturqua/tower-mods &amp;&amp; claude plugin install tower@tower</code>
         <button type="button" class="copy-inline" data-copy="hero-install">Copy</button>
       </div>
+      <div class="os-switch" role="group" aria-label="Operating system"></div>
       <p class="intro-after">Then type <code>/cockpit</code> in any session. <a href="#install">Requirements and setup</a></p>
     </section>
 
@@ -179,10 +180,12 @@
     <section id="install" class="band" aria-labelledby="install-title">
       <h2 id="install-title">Install</h2>
       <p class="sub">One line adds the marketplace and installs the plugin. Install it everywhere: every session then reports to the cockpit and can be steered from it.</p>
+      <div class="os-switch" role="group" aria-label="Operating system"></div>
       <div class="code">
         <button type="button" class="copy" data-copy="install-cmds">Copy</button>
-<pre id="install-cmds"><code>claude plugin marketplace add alaturqua/tower-mods &amp;&amp; claude plugin install tower@tower</code></pre>
+<pre id="install-cmds"><code data-cmd="install">claude plugin marketplace add alaturqua/tower-mods &amp;&amp; claude plugin install tower@tower</code></pre>
       </div>
+      <p class="os-note" data-os-note>On Windows, PowerShell runs the two commands one after the other with a semicolon. In Command Prompt, or PowerShell 7, you can use <code>&amp;&amp;</code> as on macOS and Linux.</p>
       <ul class="setup">
         <li><b>Open the cockpit:</b> <code>/cockpit</code> in any session starts it and opens your browser. It listens on this machine only, behind a one-time link.</li>
         <li><b>Needs:</b> Node.js 18 or newer for the cockpit, and <code>gh</code> for pull requests. Sessions started before installing need a restart to report and receive.</li>
@@ -197,9 +200,10 @@
 
       <h3>Update</h3>
       <p>Update the plugin, then reload it in every open session:</p>
+      <div class="os-switch" role="group" aria-label="Operating system"></div>
       <div class="code">
         <button type="button" class="copy" data-copy="help-update">Copy</button>
-<pre id="help-update"><code>claude plugin marketplace update tower &amp;&amp; claude plugin update tower</code></pre>
+<pre id="help-update"><code data-cmd="update">claude plugin marketplace update tower &amp;&amp; claude plugin update tower</code></pre>
       </div>
       <p>Then type <code>/reload-plugins</code> in your sessions and <code>/cockpit</code> in any of them. A cockpit of an older version is replaced by the new one on its own, and your open browser tab keeps working.</p>
 
@@ -269,6 +273,40 @@ node "&lt;plugin folder&gt;/cockpit/server.mjs" --stop</code></pre>
         })
       })
       if (media) media.addEventListener('change', apply)
+      apply()
+    })()
+
+    // The install and update commands per system: PowerShell 5 has no &&, so Windows chains with ;.
+    // The choice starts from the browser's platform, is remembered, and moves every switch together.
+    ;(function () {
+      var AND = ' && ', SEMI = '; '
+      var parts = {
+        install: ['claude plugin marketplace add alaturqua/tower-mods', 'claude plugin install tower@tower'],
+        update: ['claude plugin marketplace update tower', 'claude plugin update tower']
+      }
+      var systems = [['mac', 'macOS'], ['linux', 'Linux'], ['windows', 'Windows']]
+      var platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || ''
+      var guess = /win/i.test(platform) ? 'windows' : /mac|iphone|ipad/i.test(platform) ? 'mac' : 'linux'
+      var os = guess
+      try { var saved = localStorage.getItem('tower-os'); if (saved === 'mac' || saved === 'linux' || saved === 'windows') os = saved } catch (e) {}
+      var switches = document.querySelectorAll('.os-switch')
+      switches.forEach(function (box) {
+        systems.forEach(function (s) {
+          var b = document.createElement('button')
+          b.type = 'button'; b.dataset.os = s[0]; b.textContent = s[1]
+          b.addEventListener('click', function () {
+            os = s[0]
+            try { localStorage.setItem('tower-os', os) } catch (e) {}
+            apply()
+          })
+          box.appendChild(b)
+        })
+      })
+      function apply() {
+        document.querySelectorAll('[data-cmd]').forEach(function (el) { el.textContent = parts[el.dataset.cmd].join(os === 'windows' ? SEMI : AND) })
+        document.querySelectorAll('.os-switch button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.os === os)) })
+        document.querySelectorAll('[data-os-note]').forEach(function (n) { n.hidden = os !== 'windows' })
+      }
       apply()
     })()
 
