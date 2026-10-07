@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-10-06T20:02:51.599Z",
         "reason": "Claude, per the user's approval of the cockpit mockup: the Cards view's 3px state-colored top stripe on rounded cards is the approved design"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "plugins/tower/cockpit/web/mockup.dc.html"
+        ],
+        "createdAt": "2026-10-07T07:13:49.060Z",
+        "reason": "Claude: three intentional edge-to-edge containers in the approved cockpit design (diff block whose lines carry their own inset, the underlined tab strip, the table frame whose rows carry their own padding); the check cannot scope to one element"
       }
     ]
   }
