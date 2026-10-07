@@ -282,6 +282,9 @@ export const registerPane: Register = (on, options) => {
     // Room for the session's last words: what the rows and the box leave.
     const previewLines = Math.min(4, Math.max(1, (e.viewport?.rows ?? 30) - list.length - needs.length * 2 - 16))
     const cols = columns(width)
+    // Docked, the pane is at least as tall as its room, so the send box sits at its bottom like a chat's.
+    const props = e.props as { placement?: string; scroll?: { bodyRows?: number } }
+    const room = props.placement === 'dock' ? Math.max(0, (props.scroll?.bodyRows ?? 0) - 1) : 0
 
     // Two sessions in one folder share a label; the first letters of the id tell them apart.
     const nameOf = (s: TowerSession) => (list.filter(o => o.label === s.label).length > 1 ? `${s.label} #${s.id.slice(0, 4)}` : s.label) + (s.kind === 'background' ? ' (bg)' : '')
@@ -339,7 +342,7 @@ export const registerPane: Register = (on, options) => {
     const title = target ? ` ${nameOf(target)} · ${target.state} · ${target.cwd} ` : ''
 
     return (
-      <Box flexDirection="column" gap={1}>
+      <Box flexDirection="column" gap={1} minHeight={room || undefined}>
         <Box gap={1} flexWrap="wrap">
           <Text bold>Tower</Text>
           <Text dimColor>· {list.length} session{list.length === 1 ? '' : 's'}</Text>
@@ -384,6 +387,8 @@ export const registerPane: Register = (on, options) => {
             {!target.lastPrompt && answer.length === 0 && target.hasBeacon && <Text dimColor>Nothing said yet.</Text>}
           </Box>
         )}
+
+        <Box flexGrow={1} />
 
         {target && (
           <Box borderStyle="round" borderColor={focused ? 'suggestion' : undefined} borderDimColor={!focused} paddingX={1}>
