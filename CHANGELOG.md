@@ -2,6 +2,11 @@
 
 Everything notable in Tower (the plugin and its site), newest first. Generated from the commit history by [git-cliff](https://git-cliff.org).
 
+## [0.3.2](https://github.com/alaturqua/tower-mods/releases/tag/v0.3.2) - 2026-10-07
+
+### Changed
+
+- Replace an older cockpit on /cockpit, add /cockpit restart and stop ([1e6f0f5](https://github.com/alaturqua/tower-mods/commit/1e6f0f5b881299dddaa98aababba31e5bc4e8023))
 ## [0.3.1](https://github.com/alaturqua/tower-mods/releases/tag/v0.3.1) - 2026-10-07
 
 ### Changed
