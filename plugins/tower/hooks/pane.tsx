@@ -248,7 +248,6 @@ export const registerPane: Register = (on, options) => {
     const { Box, Text, Button, Input, Select } = $.ui.resolve(e)
     const width = (e.props as { bodyColumns?: number }).bodyColumns ?? e.viewport?.columns ?? 80
     const toast = (text: string) => $.ui.toast(text)
-    const focused = (e.props as { isFocused?: boolean }).isFocused === true
 
     if ((await read($, view)) === 'launch') {
       const repos = await knownRepos($)
@@ -278,123 +277,130 @@ export const registerPane: Register = (on, options) => {
     const now = await $.clock.now()
     const chosen = await read($, selected)
     const target = list.find(s => s.id === chosen) ?? list[0]
-    const waiting = list.filter(s => s.state === 'needs-input').length
-    const pending = target?.remoteAnswers ? target.pending : null
-    // Side by side when there is room, stacked when there is not.
-    const wide = width >= 84
-    const listWidth = 34
-    // A few lines of the answer's end, each cut to one line: the cockpit has the rest.
-    const previewLines = Math.min(6, Math.max(2, (e.viewport?.rows ?? 30) - (wide ? 18 : list.length + 18)))
+    const needs = list.filter(s => s.state === 'needs-input')
+    const focused = (e.props as { isFocused?: boolean }).isFocused === true
+    // Room for the session's last words: what the rows and the box leave.
+    const previewLines = Math.min(4, Math.max(1, (e.viewport?.rows ?? 30) - list.length - needs.length * 2 - 16))
+    const cols = columns(width)
 
     // Two sessions in one folder share a label; the first letters of the id tell them apart.
     const nameOf = (s: TowerSession) => (list.filter(o => o.label === s.label).length > 1 ? `${s.label} #${s.id.slice(0, 4)}` : s.label) + (s.kind === 'background' ? ' (bg)' : '')
+    const pick = (s: TowerSession) => void update($, selected, () => s.id)
+    const move = (step: number) => {
+      if (!list.length) return
+      const at = Math.max(0, list.findIndex(s => s.id === target?.id))
+      pick(list[(at + step + list.length) % list.length] as TowerSession)
+    }
 
+    // One card per session that waits on you. Only the first takes the keys: two cards on one key would clash.
+    const card = (s: TowerSession, first: boolean) => {
+      const p = s.pending
+      const answerable = s.remoteAnswers && p
+      return (
+        <Box key={`card-${s.id}`} gap={1} flexWrap="wrap">
+          <Text color="warning" bold>{p?.kind === 'question' ? '?' : '!'}</Text>
+          <Button key={`pick-card-${s.id}`} plain onPress={() => pick(s)}>{nameOf(s)}</Button>
+          <Text dimColor>{!p ? 'needs you' : p.kind === 'question' ? 'asks' : answerable ? 'needs approval' : 'waits in its terminal'}</Text>
+          <Box flexGrow={1} flexShrink={1}><Text wrap="truncate-end">{p ? `${p.title} ${p.detail ?? ''}`.trim() : (s.message ?? '')}</Text></Box>
+          {answerable && p.kind === 'permission' && (
+            <Box gap={1}>
+              <Button key={first ? 'allow' : `allow-${s.id}`} hotkey={first ? 'a' : undefined} variant="primary" onPress={() => void send($, s, { kind: 'answer', pendingId: p.id, allow: true }).then(toast)}>{first ? 'Allow (a)' : 'Allow'}</Button>
+              <Button key={first ? 'deny' : `deny-${s.id}`} hotkey={first ? 'd' : undefined} onPress={() => void send($, s, { kind: 'answer', pendingId: p.id, allow: false }).then(toast)}>{first ? 'Deny (d)' : 'Deny'}</Button>
+            </Box>
+          )}
+          {answerable && p.kind === 'question' && (
+            <Box gap={1} flexWrap="wrap">
+              {(p.options ?? []).slice(0, 4).map((label, i) => (
+                <Button key={`opt-${s.id}-${i}`} hotkey={first ? String(i + 1) : undefined} onPress={() => void send($, s, { kind: 'answer', pendingId: p.id, text: label }).then(toast)}>{first ? `${i + 1} ${label}` : label}</Button>
+              ))}
+            </Box>
+          )}
+          {!answerable && <Button key={`jump-card-${s.id}`} onPress={() => void jump($, s).then(toast)}>Jump</Button>}
+        </Box>
+      )
+    }
+
+    // One line per session: what it is doing, without picking it first.
     const row = (s: TowerSession) => {
       const isChosen = s.id === target?.id
-      const what = s.pending ? `${s.pending.title}: ${s.pending.detail ?? ''}` : (s.message ?? '')
-      const cols = columns(wide ? listWidth : width)
-      const name = nameOf(s).slice(0, wide ? 20 : cols.labelWidth).padEnd(wide ? 20 : cols.labelWidth)
+      const what = s.pending ? `${s.pending.title}: ${s.pending.detail ?? ''}` : (s.message ?? s.state)
       return (
         <Box key={`row-${s.id}`} gap={1}>
-          <Text color={COLOR[s.state]} dimColor={s.state === 'idle'} bold={isChosen}>{isChosen ? '▸' : ' '}{MARK[s.state]}</Text>
-          <Button key={`pick-${s.id}`} plain onPress={() => void update($, selected, () => s.id)}>{name}</Button>
-          {!wide && cols.showState && <Text color={COLOR[s.state]} dimColor={s.state === 'idle'}>{s.state.padEnd(11)}</Text>}
-          <Box flexGrow={1}>{!wide && cols.showMessage && <Text dimColor wrap="truncate-end">{what.replace(/\s+/g, ' ')}</Text>}</Box>
+          <Text color={isChosen ? 'suggestion' : undefined} bold>{isChosen ? '▶' : ' '}</Text>
+          <Text color={COLOR[s.state]} dimColor={s.state === 'idle'}>{MARK[s.state]}</Text>
+          <Button key={`pick-${s.id}`} plain onPress={() => pick(s)}>{nameOf(s).slice(0, cols.labelWidth).padEnd(cols.labelWidth)}</Button>
+          <Box flexGrow={1} flexShrink={1}>{cols.showState && <Text dimColor={!isChosen} wrap="truncate-end">{what.replace(/\s+/g, ' ')}</Text>}</Box>
           <Text dimColor>{ago(s.updatedAt, now)}</Text>
         </Box>
       )
     }
 
-    // The list in the order that matters: who needs you, who works, the rest.
-    const groups: [string, TowerSession[]][] = [
-      ['NEEDS YOU', list.filter(s => s.state === 'needs-input')],
-      ['WORKING', list.filter(s => s.state === 'working')],
-      ['DONE AND IDLE', list.filter(s => s.state === 'done' || s.state === 'idle')],
-    ]
-    const sessionList = (
-      <Box flexDirection="column" width={wide ? listWidth : undefined}>
-        {list.length === 0 && <Text dimColor>No other sessions are running. Press n to start one.</Text>}
-        {groups.filter(([, members]) => members.length > 0).map(([title, members], i) => (
-          <Box key={`group-${title}`} flexDirection="column" marginTop={i === 0 ? 0 : 1}>
-            <Text dimColor bold>{title}</Text>
-            {members.map(row)}
-          </Box>
-        ))}
-      </Box>
-    )
-
-    const answerLines = target?.lastAnswer ? tail(target.lastAnswer, previewLines).split('\n') : []
-    const detail = target && (
-      <Box flexDirection="column" flexGrow={1} flexShrink={1} gap={1} borderStyle="round" borderColor={target.pending ? 'warning' : undefined} borderDimColor={!target.pending} paddingX={1}>
-        <Box flexDirection="column">
-          <Box gap={1}>
-            <Text bold wrap="truncate-end">{nameOf(target)}</Text>
-            <Text color={COLOR[target.state]} dimColor={target.state === 'idle'}>{MARK[target.state]} {target.state} · {ago(target.updatedAt, now)}</Text>
-          </Box>
-          <Text dimColor wrap="truncate-middle">{target.cwd}{target.hasBeacon ? '' : ' · no beacon'}</Text>
-        </Box>
-        {target.pending && !pending && <Text color="warning">Waiting in its terminal: {target.pending.title} {target.pending.detail ?? ''}</Text>}
-        {pending?.kind === 'permission' && (
-          <Box flexDirection="column" borderStyle="round" borderColor="warning" paddingX={1}>
-            <Text color="warning" bold>Needs approval</Text>
-            <Text wrap="truncate-end">{pending.title} {pending.detail ?? ''}</Text>
-            <Box gap={1}>
-              <Button key="allow" hotkey="a" variant="primary" onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, allow: true }).then(toast)}>Allow (a)</Button>
-              <Button key="deny" hotkey="d" onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, allow: false }).then(toast)}>Deny (d)</Button>
-            </Box>
-          </Box>
-        )}
-        {pending?.kind === 'question' && (
-          <Box flexDirection="column" borderStyle="round" borderColor="warning" paddingX={1}>
-            <Text color="warning" bold>Asks</Text>
-            <Text>{pending.title}</Text>
-            <Box gap={1} flexWrap="wrap">
-              {(pending.options ?? []).slice(0, 4).map((label, i) => (
-                <Button key={`opt-${i}`} hotkey={String(i + 1)} onPress={() => void send($, target, { kind: 'answer', pendingId: pending.id, text: label }).then(toast)}>{label}</Button>
-              ))}
-            </Box>
-          </Box>
-        )}
-        {!target.pending && target.message && target.state !== 'done' && <Text color={COLOR[target.state]} wrap="truncate-end">{target.message}</Text>}
-        {target.lastPrompt && (
-          <Box gap={1}>
-            <Text bold>You</Text>
-            <Box flexGrow={1}><Text dimColor wrap="truncate-end">{target.lastPrompt.replace(/\s+/g, ' ')}</Text></Box>
-          </Box>
-        )}
-        {answerLines.length > 0 && (
-          <Box gap={1}>
-            <Text bold color="suggestion">Claude</Text>
-            <Box flexGrow={1} flexDirection="column">
-              {answerLines.map((line, i) => <Text key={`line-${i}`} wrap="truncate-end">{line}</Text>)}
-            </Box>
-          </Box>
-        )}
-        {!target.hasBeacon && <Text dimColor>No preview: this session runs without beacon.</Text>}
-        <Input key={`say-${target.id}`} placeholder={pending?.kind === 'question' ? `Answer ${nameOf(target)} and press Enter…` : `Message ${nameOf(target)} and press Enter…`} submitLabel="send"
-          onSubmit={text => { if (text.trim()) void sendText($, target, text.trim()).then(toast) }} />
-      </Box>
-    )
+    const answer = target?.lastAnswer ? tail(target.lastAnswer, previewLines).split('\n') : []
+    const title = target ? ` ${nameOf(target)} · ${target.state} · ${target.cwd} ` : ''
 
     return (
       <Box flexDirection="column" gap={1}>
-        <Box gap={1}>
+        <Box gap={1} flexWrap="wrap">
           <Text bold>Tower</Text>
           <Text dimColor>· {list.length} session{list.length === 1 ? '' : 's'}</Text>
-          {waiting > 0 && <Text color="warning" bold>· {waiting} need{waiting === 1 ? 's' : ''} you</Text>}
+          {needs.length > 0 && <Text color="warning" bold>· {needs.length} need{needs.length === 1 ? 's' : ''} you</Text>}
+          <Box flexGrow={1} />
+          {focused
+            ? <Text color="success">● Typing here · Esc back to your prompt</Text>
+            : <Text dimColor>Click here or press ctrl+x Tab to use it</Text>}
         </Box>
-        {focused
-          ? <Text color="success">● Typing here. Pick a session, write in the box, Enter sends · Esc goes back to your prompt</Text>
-          : <Text dimColor>Click this pane or press ctrl+x Tab to use it: pick a session, then message it.</Text>}
         {error && <Text color="warning">Stale: {error}</Text>}
-        {wide
-          ? <Box gap={1}>{sessionList}{detail}</Box>
-          : <Box flexDirection="column" gap={1}>{sessionList}{detail}</Box>}
+
+        {needs.length > 0 && (
+          <Box flexDirection="column" borderStyle="round" borderColor="warning" paddingX={1}>
+            <Text color="warning" bold>NEEDS YOU</Text>
+            {needs.map((s, i) => card(s, i === 0))}
+          </Box>
+        )}
+
+        <Box flexDirection="column">
+          {list.length === 0 && <Text dimColor>No other sessions are running. Press n to start one.</Text>}
+          {list.filter(s => s.state !== 'needs-input').map(row)}
+        </Box>
+
+        {target && (
+          <Box flexDirection="column">
+            <Text dimColor wrap="truncate-middle">{'──' + title + '─'.repeat(Math.max(2, width - title.length - 4))}</Text>
+            {!target.hasBeacon && <Text dimColor>No preview: this session runs without Tower.</Text>}
+            {target.lastPrompt && (
+              <Box gap={1}>
+                <Text bold>{'You   '}</Text>
+                <Box flexGrow={1} flexShrink={1}><Text dimColor wrap="truncate-end">{target.lastPrompt.replace(/\s+/g, ' ')}</Text></Box>
+              </Box>
+            )}
+            {answer.length > 0 && (
+              <Box gap={1}>
+                <Text bold color="suggestion">Claude</Text>
+                <Box flexGrow={1} flexShrink={1} flexDirection="column">
+                  {answer.map((line, i) => <Text key={`line-${i}`} wrap="truncate-end">{line}</Text>)}
+                </Box>
+              </Box>
+            )}
+            {!target.lastPrompt && answer.length === 0 && target.hasBeacon && <Text dimColor>Nothing said yet.</Text>}
+          </Box>
+        )}
+
+        {target && (
+          <Box borderStyle="round" borderColor={focused ? 'suggestion' : undefined} borderDimColor={!focused} paddingX={1}>
+            <Input key={`say-${target.id}`} label={`To ${nameOf(target)}`}
+              placeholder={target.pending?.kind === 'question' && target.remoteAnswers ? 'Type an answer, Enter sends' : 'Type a message or /command, Enter sends'} submitLabel="send"
+              onSubmit={text => { if (text.trim()) void sendText($, target, text.trim()).then(toast) }} />
+          </Box>
+        )}
+
         <Box gap={1} flexWrap="wrap">
-          {target && <Button key="jump" hotkey="j" onPress={() => void jump($, target).then(toast)}>Jump (j)</Button>}
-          <Button key="new" hotkey="n" onPress={() => void update($, view, () => 'launch')}>New session (n)</Button>
-          <Button key="cockpit" hotkey="o" onPress={() => void startCockpit($, '--open').then(toast)}>Open cockpit (o)</Button>
-          <Button key="refresh" hotkey="r" onPress={() => refresh($)}>Refresh (r)</Button>
+          <Button key="prev" hotkey="k" plain onPress={() => move(-1)}>k ↑</Button>
+          <Button key="next" hotkey="j" plain onPress={() => move(1)}>j ↓</Button>
+          <Text dimColor>pick ·</Text>
+          {target && <Button key="jump" hotkey="g" plain onPress={() => void jump($, target).then(toast)}>g jump</Button>}
+          <Button key="new" hotkey="n" plain onPress={() => void update($, view, () => 'launch')}>n new</Button>
+          <Button key="cockpit" hotkey="o" plain onPress={() => void startCockpit($, '--open').then(toast)}>o cockpit</Button>
+          <Button key="refresh" hotkey="r" plain onPress={() => refresh($)}>r refresh</Button>
         </Box>
       </Box>
     )
