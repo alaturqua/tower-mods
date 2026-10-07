@@ -1,18 +1,29 @@
 {
   "name": "tower",
-  "owner": { "name": "Isa Inalcik", "email": "isa.inalcik@gmail.com" },
+  "owner": {
+    "name": "Isa Inalcik",
+    "email": "isa.inalcik@gmail.com"
+  },
   "metadata": {
-    "description": "Run many Claude Code sessions across repos from one place.",
-    "version": "0.2.0"
+    "description": "A cockpit for every Claude Code agent across your repos.",
+    "version": "0.3.0"
   },
   "plugins": [
     {
       "name": "tower",
       "source": "./plugins/tower",
-      "description": "A /tower pane over every running session across your repos, desktop notifications when one needs you, answers and prompts sent from the tower, and a status line with folder, branch, model, effort, mode, context and cost.",
-      "version": "0.2.0",
+      "description": "A web cockpit and a /tower pane over every Claude Code agent across your repos: see who needs you, approve and answer, send prompts and slash commands, start workstreams in git worktrees, and watch changes and PRs. Plus desktop notifications and a status line.",
+      "version": "0.3.0",
       "category": "productivity",
-      "keywords": ["multi-repo", "sessions", "dashboard", "notifications", "status line", "mods"]
+      "keywords": [
+        "cockpit",
+        "multi-repo",
+        "sessions",
+        "worktrees",
+        "dashboard",
+        "notifications",
+        "status line"
+      ]
     }
   ]
 }

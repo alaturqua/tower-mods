@@ -1,7 +1,7 @@
 {
   "name": "tower",
-  "version": "0.2.0",
-  "description": "Run every Claude Code session from one place: a /tower pane over all sessions across your repos, desktop notifications when one needs you, answers and prompts sent from the tower, and a status line with folder, branch, model, effort, mode, context and cost.",
+  "version": "0.3.0",
+  "description": "A web cockpit and a /tower pane over every Claude Code agent across your repos: see who needs you, approve and answer, send prompts and slash commands, start workstreams in git worktrees, and watch changes and PRs. Plus desktop notifications and a status line.",
   "author": {
     "name": "Isa Inalcik",
     "email": "dynamit1985@gmail.com"
@@ -37,7 +37,11 @@
       "type": "string",
       "title": "Answer from the tower",
       "description": "Which sessions send their permission prompts and questions to the tower instead of the terminal: launched (sessions the tower started), always, or never.",
-      "options": ["launched", "always", "never"],
+      "options": [
+        "launched",
+        "always",
+        "never"
+      ],
       "default": "launched"
     },
     "inboxSeconds": {

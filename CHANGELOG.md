@@ -2,7 +2,7 @@
 
 Everything notable in Tower (the plugin and its site), newest first. Generated from the commit history by [git-cliff](https://git-cliff.org).
 
-## Unreleased
+## [0.3.0](https://github.com/alaturqua/tower-mods/releases/tag/v0.3.0) - 2026-10-07
 
 ### Added
 
@@ -11,6 +11,8 @@ Everything notable in Tower (the plugin and its site), newest first. Generated f
 - Add a demo GIF of the cockpit mockup to the site and README ([9961bbc](https://github.com/alaturqua/tower-mods/commit/9961bbc973f598909f10587e75e11c2e83956617))
 - Add System, Light and Dark choice to the site, and the demo GIF in both themes ([8eeb92e](https://github.com/alaturqua/tower-mods/commit/8eeb92ea4876105e47aed8552160f49bc83590c0))
 - Add the cockpit: a local web dashboard over every session ([fc64db5](https://github.com/alaturqua/tower-mods/commit/fc64db5edea6cddcf3687810538c61f2a1ddc7f2))
+- Add git-cliff changelogs, a release script and workflow, and CI ([ddd6c4c](https://github.com/alaturqua/tower-mods/commit/ddd6c4c599a4dd50c3f7ce93c6fad0ec002d2c38))
+- Adding fixes and adjustments ([bd693de](https://github.com/alaturqua/tower-mods/commit/bd693debf1d58d5cfcb3f1748c40695daf2bc2e9))
 
 ### Changed
 
@@ -24,9 +26,17 @@ Everything notable in Tower (the plugin and its site), newest first. Generated f
 - Report what the cockpit needs from every session, and read its inbox ([72c9847](https://github.com/alaturqua/tower-mods/commit/72c9847e5bf7a23e466ab1f6a7a87a6bbc52d076))
 - Run slash commands sent from the tower, and publish each session's list ([b091f7c](https://github.com/alaturqua/tower-mods/commit/b091f7cdfa2a555d4231eba798b980b979147794))
 - Patch the page in place on live updates, and explain an empty feed ([d08e398](https://github.com/alaturqua/tower-mods/commit/d08e398d1db665d22937b830476562690276b317))
+- Rename and remove repos and worktrees from the cockpit ([4e16010](https://github.com/alaturqua/tower-mods/commit/4e16010315a2bf8c8f8dfa085dbd38dc2b301c41))
 
 ### Fixed
 
 - Fix hover contrast and row padding on the site ([57c8367](https://github.com/alaturqua/tower-mods/commit/57c8367dda697e3b2ae5386b62960eaf6ed0aed0))
 - Fix the demo player not starting ([b7669f9](https://github.com/alaturqua/tower-mods/commit/b7669f9ca2819b56725d7a800a56380a36ce6edb))
+- Fix slash-command suggestions in the cockpit with a drop-up menu ([08fe73f](https://github.com/alaturqua/tower-mods/commit/08fe73ff4b824a12685fe2edfa3c606f11d4c6f1))
+- Fix hook tests that failed on Linux ([d4fce43](https://github.com/alaturqua/tower-mods/commit/d4fce4382be3f6dcf64352db0962b1c8c859894b))
+- Fix sending to sessions that cannot receive, and jumping to terminals ([faaa9f1](https://github.com/alaturqua/tower-mods/commit/faaa9f108f7492e07d709a092eb536afbb6f5f20))
+
+### Documentation
+
+- Document the cockpit in the README and the spec ([fabac4f](https://github.com/alaturqua/tower-mods/commit/fabac4f059f4078f16d5596ffe5db2af3724df28))
 
