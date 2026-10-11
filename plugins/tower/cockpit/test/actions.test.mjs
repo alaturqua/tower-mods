@@ -145,3 +145,16 @@ test('a fan-out needs a task, and a single launch still needs a name', async () 
   assert.equal((await actions.launch({ repo, name: 'x', copies: 3, task: ' ' })).message, 'Give the agents a task to compare them on.')
   assert.equal((await actions.launch({ repo, name: ' ', copies: 3 })).message, 'Name the workstream.')
 })
+
+test('picking a repository adds the chosen folder, stays quiet on cancel, and says when there is no dialog', async () => {
+  const chose = (stdout, code = 0) => async () => ({ ok: code === 0, code, stdout, stderr: '' })
+  const added = await actions.pickRepo({}, {}, { exec: chose(repo + '\n'), platform: 'win32' })
+  assert.ok(added.ok)
+  assert.match(added.message, /Added/)
+  assert.deepEqual(await actions.pickRepo({}, {}, { exec: chose('', 1), platform: 'darwin' }), { ok: true, quiet: true, message: '' })
+  assert.equal((await actions.pickRepo({}, {}, { exec: chose(home + '\n'), platform: 'linux' })).message, 'Not a git repository.')
+  // zenity missing, kdialog missing: fall back to typing the path
+  const none = await actions.pickRepo({}, {}, { exec: async () => ({ ok: false, code: 'ENOENT', stdout: '', stderr: '' }), platform: 'linux' })
+  assert.equal(none.unavailable, true)
+  assert.equal((await actions.pickRepo({}, {}, { platform: 'sunos' })).unavailable, true)
+})

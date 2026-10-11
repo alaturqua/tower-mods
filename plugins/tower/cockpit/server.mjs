@@ -45,7 +45,7 @@ const STATIC = {
 const ACTIONS = {
   send: actions.send, answer: actions.answer, launch: actions.launch, stop: actions.stop, jump: actions.jump,
   merge: actions.merge, 'remove-worktree': actions.removeWorktree, 'rename-branch': actions.renameBranch, 'open-editor': actions.openEditor,
-  'add-repo': actions.addRepo, 'rename-repo': actions.renameRepo, 'hide-repo': actions.hideRepo,
+  'add-repo': actions.addRepo, 'pick-repo': actions.pickRepo, 'rename-repo': actions.renameRepo, 'hide-repo': actions.hideRepo,
   'allow-always': actions.allowAlways, 'remote-answers': actions.remoteAnswers, 'merge-queue': actions.mergeQueue, 'keep-fanout': actions.keepFanout,
   // Here, not in lib/actions.mjs: the done log it empties lives in this file.
   'clear-done': async () => { await clearHistory(); runs = []; return { ok: true, message: 'Cleared the Done log.' } },

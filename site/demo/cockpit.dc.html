@@ -137,7 +137,22 @@ nav.tw-col,.tw-aside{box-sizing:border-box}
           </sc-if>
         </div>
       </sc-for>
-      <button type="button" onClick="{{addRepo}}" style="margin-top: 8px; min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px dashed var(--edge); background: transparent; color: var(--muted); text-align: left">+ Add repository</button>
+      <sc-if value="{{addRepoForm.closed}}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top: 8px; display: flex; align-items: center; gap: 4px">
+            <button type="button" onClick="{{addRepoForm.browse}}" title="Opens your system's folder picker" style="flex: 1; min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px dashed var(--edge); background: transparent; color: var(--muted); text-align: left">{{addRepoForm.label}}</button>
+            <button type="button" onClick="{{addRepoForm.open}}" title="Type or paste the path instead" style="min-height: 40px; padding: 0 8px; border: none; border-radius: 8px; background: transparent; color: var(--muted); font-size: 12px; text-decoration: underline; text-underline-offset: 3px">type a path</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{addRepoForm.isOpen}}" hint-placeholder-val="{{ false }}">
+          <form onSubmit="{{addRepoForm.submit}}" style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 8px; border: 1px solid var(--edge); background: var(--panel)">
+            <label for="add-repo-path" style="font-size: 12px; color: var(--muted)">Path to a git repository on this machine</label>
+            <input id="add-repo-path" value="{{addRepoForm.draft}}" onChange="{{addRepoForm.typed}}" onKeyDown="{{addRepoForm.key}}" autocomplete="off" spellcheck="false" placeholder="e.g. D:/Projects/my-repo" style="min-height: 36px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--edge); background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 12px">
+            <span style="display: flex; gap: 6px">
+              <button type="submit" style="min-height: 34px; padding: 0 12px; border-radius: 6px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">Add</button>
+              <button type="button" onClick="{{addRepoForm.cancel}}" style="min-height: 34px; padding: 0 10px; border-radius: 6px; border: none; background: transparent; color: var(--muted)">Cancel</button>
+            </span>
+          </form>
+        </sc-if>
       <div style="margin-top: auto; padding: 14px 10px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.7">
         <div><kbd>J</kbd> <kbd>K</kbd> next blocked agent</div>
         <div><kbd>A</kbd> allow · <kbd>D</kbd> deny · <kbd>1</kbd>–<kbd>4</kbd> answer</div>
@@ -902,6 +917,12 @@ class Component extends DCLogic {
     setTimeout(function () { var first = document.querySelector('#agent-menu [role=menuitem]'); if (first) first.focus(); }, 0);
   }
 
+  // The typed path field in the rail, focused and empty.
+  addRepoField() {
+    this.setState({ addingRepo: true, repoDraft: '' });
+    setTimeout(function () { var box = document.getElementById('add-repo-path'); if (box) box.focus(); }, 0);
+  }
+
   // A new view starts at the top of the main column, not wherever the last one was scrolled.
   showView(view) {
     this.remember({ view: view });
@@ -990,7 +1011,7 @@ class Component extends DCLogic {
     var self = this;
     return fetch('/api/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(function (r) { return r.json(); })
-      .then(function (res) { self.toast(res.message || (res.ok ? 'Done.' : 'Failed.'), !res.ok); return res; })
+      .then(function (res) { if (!res.quiet) self.toast(res.message || (res.ok ? 'Done.' : 'Failed.'), !res.ok); return res; })
       .catch(function (err) { self.toast('The cockpit server did not answer: ' + err.message, true); return { ok: false }; });
   }
 
@@ -1535,9 +1556,30 @@ class Component extends DCLogic {
         if (!root) { self.toast('Add a repository first, with + Add repository.', true); return; }
         self.openForm(root, null, true);
       },
-      addRepo: function () {
-        var path = window.prompt('Path to a git repository on this machine:');
-        if (path) self.post('add-repo', { path: path });
+      // Adding a repository happens in the rail itself, not in a browser prompt.
+      addRepoForm: {
+        isOpen: Boolean(st.addingRepo), closed: !st.addingRepo, draft: st.repoDraft || '',
+        label: st.pickingRepo ? 'Choose a folder in the dialog…' : '+ Add repository',
+        // The OS's folder dialog, opened by the server; the typed field is the fallback.
+        browse: function () {
+          if (self.state.pickingRepo) return;
+          self.setState({ pickingRepo: true });
+          self.post('pick-repo', {}).then(function (res) {
+            self.setState({ pickingRepo: false });
+            if (res.unavailable) self.addRepoField();
+          });
+        },
+        open: function () { self.addRepoField(); },
+        typed: function (e) { self.setState({ repoDraft: e.target.value }); },
+        key: function (e) { if (e.key === 'Escape') { e.preventDefault(); self.setState({ addingRepo: false }); } },
+        cancel: function () { self.setState({ addingRepo: false }); },
+        submit: function (e) {
+          if (e && e.preventDefault) e.preventDefault();
+          var path = String(self.state.repoDraft || '').trim();
+          if (!path) return;
+          // On failure the box stays open with what was typed, so the path can be fixed.
+          self.post('add-repo', { path: path }).then(function (res) { if (res.ok) self.setState({ addingRepo: false, repoDraft: '' }); });
+        }
       },
       detail: {
         isCollapsed: Boolean(sel) && st.detailCollapsed, isOpen: Boolean(sel) && !st.detailCollapsed,

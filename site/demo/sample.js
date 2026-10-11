@@ -162,6 +162,8 @@
   function later(a, say) { setTimeout(function () { if (a.state !== 'working') return; a.state = 'done'; a.doing = say; note(a, 'say', say); publish() }, 4000) }
 
   var ACTIONS = {
+    // The demo has no machine to open a folder dialog on, so it falls back to typing, as a headless one would.
+    'pick-repo': function () { return { ok: false, unavailable: true, message: 'The demo has no folder dialog. Type a path instead.' } },
     'clear-done': function () { done = []; return { ok: true, message: 'Cleared the Done log.' } },
     answer: function (b) {
       var a = find(b.id)

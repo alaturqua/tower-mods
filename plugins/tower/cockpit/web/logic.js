@@ -118,6 +118,12 @@ class Component extends DCLogic {
     setTimeout(function () { var first = document.querySelector('#agent-menu [role=menuitem]'); if (first) first.focus(); }, 0);
   }
 
+  // The typed path field in the rail, focused and empty.
+  addRepoField() {
+    this.setState({ addingRepo: true, repoDraft: '' });
+    setTimeout(function () { var box = document.getElementById('add-repo-path'); if (box) box.focus(); }, 0);
+  }
+
   // A new view starts at the top of the main column, not wherever the last one was scrolled.
   showView(view) {
     this.remember({ view: view });
@@ -206,7 +212,7 @@ class Component extends DCLogic {
     var self = this;
     return fetch('/api/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(function (r) { return r.json(); })
-      .then(function (res) { self.toast(res.message || (res.ok ? 'Done.' : 'Failed.'), !res.ok); return res; })
+      .then(function (res) { if (!res.quiet) self.toast(res.message || (res.ok ? 'Done.' : 'Failed.'), !res.ok); return res; })
       .catch(function (err) { self.toast('The cockpit server did not answer: ' + err.message, true); return { ok: false }; });
   }
 
@@ -751,9 +757,30 @@ class Component extends DCLogic {
         if (!root) { self.toast('Add a repository first, with + Add repository.', true); return; }
         self.openForm(root, null, true);
       },
-      addRepo: function () {
-        var path = window.prompt('Path to a git repository on this machine:');
-        if (path) self.post('add-repo', { path: path });
+      // Adding a repository happens in the rail itself, not in a browser prompt.
+      addRepoForm: {
+        isOpen: Boolean(st.addingRepo), closed: !st.addingRepo, draft: st.repoDraft || '',
+        label: st.pickingRepo ? 'Choose a folder in the dialog…' : '+ Add repository',
+        // The OS's folder dialog, opened by the server; the typed field is the fallback.
+        browse: function () {
+          if (self.state.pickingRepo) return;
+          self.setState({ pickingRepo: true });
+          self.post('pick-repo', {}).then(function (res) {
+            self.setState({ pickingRepo: false });
+            if (res.unavailable) self.addRepoField();
+          });
+        },
+        open: function () { self.addRepoField(); },
+        typed: function (e) { self.setState({ repoDraft: e.target.value }); },
+        key: function (e) { if (e.key === 'Escape') { e.preventDefault(); self.setState({ addingRepo: false }); } },
+        cancel: function () { self.setState({ addingRepo: false }); },
+        submit: function (e) {
+          if (e && e.preventDefault) e.preventDefault();
+          var path = String(self.state.repoDraft || '').trim();
+          if (!path) return;
+          // On failure the box stays open with what was typed, so the path can be fixed.
+          self.post('add-repo', { path: path }).then(function (res) { if (res.ok) self.setState({ addingRepo: false, repoDraft: '' }); });
+        }
       },
       detail: {
         isCollapsed: Boolean(sel) && st.detailCollapsed, isOpen: Boolean(sel) && !st.detailCollapsed,

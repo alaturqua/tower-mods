@@ -193,6 +193,36 @@ export async function addRepo({ path }) {
   return ok(`Added ${root}.`)
 }
 
+// The OS's own folder dialog, opened by this server (a web page can't learn a folder's path).
+// Each answers the chosen path on stdout; a cancel exits non-zero with nothing printed.
+const PICK_TITLE = 'Choose a git repository for Tower'
+const PICKERS = {
+  win32: [['powershell.exe', ['-NoProfile', '-STA', '-Command',
+    // A topmost owner keeps the dialog in front of the browser.
+    `[Console]::OutputEncoding=[Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description='${PICK_TITLE}'; $f.UseDescriptionForTitle=$true; $o=New-Object System.Windows.Forms.Form -Property @{TopMost=$true}; if ($f.ShowDialog($o) -eq 'OK') { [Console]::Out.Write($f.SelectedPath) }`]]],
+  darwin: [['osascript', ['-e', `POSIX path of (choose folder with prompt "${PICK_TITLE}")`]]],
+  linux: [['zenity', ['--file-selection', '--directory', `--title=${PICK_TITLE}`]], ['kdialog', ['--getexistingdirectory', '.', '--title', PICK_TITLE]]],
+}
+let picking = false
+
+export async function pickRepo(_body, _fleet, { exec = run, platform = process.platform } = {}) {
+  if (picking) return fail('A folder dialog is already open. Look for it behind the browser.')
+  picking = true
+  try {
+    for (const [cmd, args] of PICKERS[platform] ?? []) {
+      // A person is choosing: give them minutes, not the usual 15 seconds.
+      const out = await exec(cmd, args, { timeout: 10 * 60000 })
+      if (out.code === 'ENOENT') continue
+      const path = out.stdout.trim()
+      if (!path) return { ok: true, quiet: true, message: '' }
+      return addRepo({ path })
+    }
+    return { ok: false, unavailable: true, message: 'No folder dialog on this machine. Type the path instead.' }
+  } finally {
+    picking = false
+  }
+}
+
 async function readSettings(file) {
   try {
     return { settings: JSON.parse(await readFile(file, 'utf8')) }

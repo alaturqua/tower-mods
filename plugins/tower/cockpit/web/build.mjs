@@ -27,7 +27,22 @@ swap(`      <button type="button" style="min-height: 40px; padding: 0 14px; bord
 swap('<button type="button" style="min-height: 40px; padding: 0 16px; border-radius: 8px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">+ New agent</button>',
   '<button type="button" onClick="{{newAgent}}" style="min-height: 40px; padding: 0 16px; border-radius: 8px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">+ New agent</button>')
 swap('<button type="button" style="margin-top: 8px; min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px dashed var(--edge); background: transparent; color: var(--muted); text-align: left">+ Add repository</button>',
-  '<button type="button" onClick="{{addRepo}}" style="margin-top: 8px; min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px dashed var(--edge); background: transparent; color: var(--muted); text-align: left">+ Add repository</button>')
+  `<sc-if value="{{addRepoForm.closed}}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top: 8px; display: flex; align-items: center; gap: 4px">
+            <button type="button" onClick="{{addRepoForm.browse}}" title="Opens your system's folder picker" style="flex: 1; min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px dashed var(--edge); background: transparent; color: var(--muted); text-align: left">{{addRepoForm.label}}</button>
+            <button type="button" onClick="{{addRepoForm.open}}" title="Type or paste the path instead" style="min-height: 40px; padding: 0 8px; border: none; border-radius: 8px; background: transparent; color: var(--muted); font-size: 12px; text-decoration: underline; text-underline-offset: 3px">type a path</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{addRepoForm.isOpen}}" hint-placeholder-val="{{ false }}">
+          <form onSubmit="{{addRepoForm.submit}}" style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 8px; border: 1px solid var(--edge); background: var(--panel)">
+            <label for="add-repo-path" style="font-size: 12px; color: var(--muted)">Path to a git repository on this machine</label>
+            <input id="add-repo-path" value="{{addRepoForm.draft}}" onChange="{{addRepoForm.typed}}" onKeyDown="{{addRepoForm.key}}" autocomplete="off" spellcheck="false" placeholder="e.g. D:/Projects/my-repo" style="min-height: 36px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--edge); background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 12px">
+            <span style="display: flex; gap: 6px">
+              <button type="submit" style="min-height: 34px; padding: 0 12px; border-radius: 6px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">Add</button>
+              <button type="button" onClick="{{addRepoForm.cancel}}" style="min-height: 34px; padding: 0 10px; border-radius: 6px; border: none; background: transparent; color: var(--muted)">Cancel</button>
+            </span>
+          </form>
+        </sc-if>`)
 
 // Each repo and workstream in the rail gets a ⋯ menu: rename, remove, open, new agent.
 const MENU = (list, open) => `<sc-if value="{{${open}}}" hint-placeholder-val="{{ false }}">
