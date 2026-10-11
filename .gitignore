@@ -6,3 +6,4 @@ node_modules/
 # Local graphify tooling (machine-specific hooks, generated graph)
 .claude/
 graphify-out/
+.impeccable/
