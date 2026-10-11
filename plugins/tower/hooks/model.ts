@@ -21,6 +21,8 @@ export type StatusFile = {
   remoteAnswers?: boolean
   lastPrompt?: string | null
   lastAnswer?: string | null
+  // A problem beacon saw: the same call failing in a row, or the session past its budget.
+  health?: string | null
   updatedAt?: string
 }
 
@@ -58,6 +60,7 @@ export function merge(agents: readonly AgentRow[], statuses: Readonly<Record<str
       remoteAnswers: beacon?.remoteAnswers === true,
       lastPrompt: beacon?.lastPrompt ?? null,
       lastAnswer: beacon?.lastAnswer ?? null,
+      health: beacon?.health ?? null,
       updatedAt: Number.isNaN(updated) ? (a.startedAt ?? 0) : updated,
     } satisfies TowerSession
   })

@@ -23,6 +23,9 @@ function stubHost(on: On) {
     { pid: 4, cwd: 'D:\\Projects\\tower-mods', kind: 'interactive', startedAt: 1, sessionId: 'me', name: 'tower', status: 'busy' },
   ]
   const files: Record<string, string> = {
+    '.claude/tower/sessions/api-id.json': JSON.stringify({
+      sessionId: 'api-id', label: 'api', state: 'idle', updatedAt: new Date().toISOString(), health: 'Over budget: $5.10 of $5.00',
+    }),
     '.claude/tower/sessions/dbt-id.json': JSON.stringify({
       sessionId: 'dbt-id', label: 'dbt-platform', state: 'needs-input', updatedAt: new Date().toISOString(), remoteAnswers: true,
       pending: { id: 'p-1', kind: 'permission', title: 'Bash', detail: 'git push' },
@@ -198,5 +201,15 @@ test('j and k move the box to the next session, and the box sends there', quiet,
   await pane.press({ key: 'prev' })
   await pane.input({ key: 'say-dbt-id', text: 'then open a PR' })
   expect(host.sends.map(s => s.to)).toEqual(['web-id', 'dbt-id'])
+  await pane.unmount()
+})
+
+test('a session with a problem shows it on its row', quiet, async ($, on) => {
+  stubHost(on)
+  await start($)
+  await $.command.run({ command: 'tower', args: 'list' } as never)
+  const pane = await $.ui.mount({ plugin: 'tower', surface: 'terminal', component: 'Pane', requestId: 'tower', props: paneProps(100) })
+
+  expect(await pane.find({ text: '⚠ Over budget: $5.10 of $5.00' })).toBeTruthy()
   await pane.unmount()
 })

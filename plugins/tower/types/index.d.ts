@@ -34,6 +34,8 @@ export type TowerSession = {
   // The conversation preview beacon keeps: the last prompt, and how the last answer ended.
   lastPrompt: string | null
   lastAnswer: string | null
+  // A problem beacon flagged (looping, over budget); the pane shows it instead of the activity.
+  health: string | null
   updatedAt: number
 }
 

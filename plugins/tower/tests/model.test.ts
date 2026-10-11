@@ -59,3 +59,10 @@ test('ago is short', () => {
   expect(ago(0, 125000)).toBe('2m')
   expect(ago(0, 7300000)).toBe('2h')
 })
+
+test('merge carries what beacon flagged', () => {
+  const list = merge([agent('a')], { a: { sessionId: 'a', state: 'working', health: 'Over budget: $5.10 of $5.00' } }, 'x')
+
+  expect(list[0]?.health).toBe('Over budget: $5.10 of $5.00')
+  expect(merge([agent('b')], {}, 'x')[0]?.health).toBe(null)
+})

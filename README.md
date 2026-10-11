@@ -57,9 +57,9 @@ Select several agents to send them all the same prompt, or stop them. Everything
 
 The same plugin works without the browser:
 
-- **`/tower`** opens a pane beside your conversation with every session. Allow, deny, answer, send a prompt, jump, or launch a background agent. The same actions work as commands: `/tower list`, `/tower send <session> <prompt>`, `/tower launch <repo path> <task>`.
+- **`/tower`** opens a pane beside your conversation with every session. Allow, deny, answer, send a prompt, jump, or launch a background agent. The same actions work as commands: `/tower list`, `/tower send <session> <prompt>`, `/tower launch <repo path> <task>`. A session that loops on a failing call or is over its budget shows ⚠ and why on its row.
 - **Notifications:** a desktop notification when a session needs you (Windows toast, macOS `osascript`, Linux `notify-send`).
-- **Status line:** `1 needs you · tower-mods ⎇ main* · Opus 5.5 · high · auto · ctx 42% · $1.23`: other sessions waiting on you, then folder, branch (`*` when there are uncommitted changes), model, effort, permission mode, context fill and cost.
+- **Status line:** `1 needs you · tower-mods ⎇ main* · Opus 5.5 · high · auto · ctx 42% · $1.23 / $5.00 · 5h 72%`: other sessions waiting on you, then folder, branch (`*` when there are uncommitted changes), model, effort, permission mode, context fill, cost (and the budget, when you set one), and the 5-hour rate limit once it is half used.
 
 ## Settings
 

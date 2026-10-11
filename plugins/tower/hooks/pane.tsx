@@ -337,7 +337,9 @@ export const registerPane: Register = (on, options) => {
           <Text color={isChosen ? 'suggestion' : undefined} bold>{isChosen ? '▶' : ' '}</Text>
           <Text color={COLOR[s.state]} dimColor={s.state === 'idle'}>{MARK[s.state]}</Text>
           <Button key={`pick-${s.id}`} plain onPress={() => pick(s)}>{nameOf(s, labelWidth).padEnd(labelWidth)}</Button>
-          <Box flexGrow={1} flexShrink={1}>{cols.showState && <Text dimColor={!isChosen} wrap="truncate-end">{what.replace(/\s+/g, ' ')}</Text>}</Box>
+          <Box flexGrow={1} flexShrink={1}>{cols.showState && (s.health
+            ? <Text color="error" wrap="truncate-end">{`⚠ ${s.health}`}</Text>
+            : <Text dimColor={!isChosen} wrap="truncate-end">{what.replace(/\s+/g, ' ')}</Text>)}</Box>
           <Box flexShrink={0}><Text dimColor>{ago(s.updatedAt, now)}</Text></Box>
         </Box>
       )

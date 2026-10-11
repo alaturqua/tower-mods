@@ -10,6 +10,7 @@ let showContext = true
 let showCost = true
 let showLine = true
 let pollMs = 5000
+let budgetUsd = 0
 // What git, the model and the usage said last; mode and effort as the engine last reported them.
 let known: StripParts = { folder: '' }
 let waiting = 0
@@ -54,6 +55,8 @@ async function refresh($: $) {
   const usage = await $.session.usage().catch(() => undefined)
   next.contextPercent = showContext ? usage?.context.percent : undefined
   next.costUsd = showCost ? usage?.cost?.usd : undefined
+  next.budgetUsd = showCost ? budgetUsd : undefined
+  next.limitPercent = showCost ? usage?.rateLimits.find(l => l.kind === 'five_hour')?.percentUsed : undefined
   known = next
   draw($)
 }
@@ -81,6 +84,7 @@ export const registerStrip: Register = (on, options) => {
   showCost = options.showCost !== false
   showLine = options.statusLine !== false
   pollMs = Number(options.statusSeconds ?? 5) * 1000
+  budgetUsd = Math.max(0, Number(options.budgetUsd ?? 0) || 0)
 
   // The first line, then a refresh on a timer.
   on('session.start', { cwd: /^/ }, async ($, e, next) => {

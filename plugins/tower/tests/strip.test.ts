@@ -90,3 +90,16 @@ test('compose leaves out what is unknown', () => {
   expect(compose({ folder: 'x', model: 'Opus 5.5' })).toBe('x · Opus 5.5')
   expect(compose({ folder: 'x', branch: 'dev', isDirty: false, mode: 'bypassPermissions', costUsd: 0 })).toBe('x ⎇ dev · bypass · $0.00')
 })
+
+test('a budget shows beside the cost, and the 5-hour window once it is half used', () => {
+  expect(compose({ folder: 'x', costUsd: 1.234, budgetUsd: 5 })).toBe('x · $1.23 / $5.00')
+  expect(compose({ folder: 'x', costUsd: 1, limitPercent: 72.4 })).toBe('x · $1.00 · 5h 72%')
+  expect(compose({ folder: 'x', costUsd: 1, limitPercent: 49 })).toBe('x · $1.00')
+})
+
+test('the budget set in /config is on the line', { options: { pollSeconds: 0, inboxSeconds: 0, budgetUsd: 5 } }, async ($, on) => {
+  const host = stubHost(on)
+  await start($)
+
+  expect(host.lines.at(-1)).toBe('tower-mods ⎇ main* · Opus 5.5 · high · ctx 42% · $1.23 / $5.00')
+})

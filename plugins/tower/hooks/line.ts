@@ -8,6 +8,10 @@ export type StripParts = {
   mode?: string
   contextPercent?: number
   costUsd?: number
+  // The budget set in /config, drawn beside the cost; 0 or unset draws none.
+  budgetUsd?: number
+  // How full the account's 5-hour rate-limit window is; drawn from LIMIT_SHOWN on.
+  limitPercent?: number
   // Other sessions waiting on you, from the tower's poll; leads the line when any are.
   waiting?: number
 }
@@ -31,6 +35,9 @@ export function modelName(model: string) {
   return `${family} ${m[2]}${m[3] ? '.' + m[3] : ''}${/\[1m\]/i.test(model) ? ' 1M' : ''}`
 }
 
+// Below this the 5-hour window is no news, and the line stays short.
+export const LIMIT_SHOWN = 50
+
 export function compose(p: StripParts) {
   const where = p.branch ? `${p.folder} ⎇ ${p.branch}${p.isDirty ? '*' : ''}` : p.folder
   const mode = p.mode === undefined ? undefined : (MODES[p.mode] ?? p.mode)
@@ -41,6 +48,7 @@ export function compose(p: StripParts) {
     p.effort,
     mode,
     p.contextPercent === undefined ? undefined : `ctx ${Math.round(p.contextPercent)}%`,
-    p.costUsd === undefined ? undefined : `$${p.costUsd.toFixed(2)}`,
+    p.costUsd === undefined ? undefined : `$${p.costUsd.toFixed(2)}${p.budgetUsd ? ` / $${p.budgetUsd.toFixed(2)}` : ''}`,
+    p.limitPercent !== undefined && p.limitPercent >= LIMIT_SHOWN ? `5h ${Math.round(p.limitPercent)}%` : undefined,
   ].filter(Boolean).join(' · ')
 }
