@@ -2,6 +2,11 @@
 
 Everything notable in Tower (the plugin and its site), newest first. Generated from the commit history by [git-cliff](https://git-cliff.org).
 
+## [0.6.1](https://github.com/alaturqua/tower-mods/releases/tag/v0.6.1) - 2026-10-11
+
+### Added
+
+- Add repositories with the system's folder picker instead of a browser prompt ([046895b](https://github.com/alaturqua/tower-mods/commit/046895b69aaf81a6057efc4450fd8ec3814e700d))
 ## [0.6.0](https://github.com/alaturqua/tower-mods/releases/tag/v0.6.0) - 2026-10-11
 
 ### Added
