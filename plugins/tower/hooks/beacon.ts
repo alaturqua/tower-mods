@@ -62,6 +62,9 @@ let lastState: State = 'idle'
 let lastMessage: string | null = null
 // The same call failing again and again: its key, and how many times in a row.
 let failing = { key: '', count: 0, text: '' }
+// Each subagent's latest tool call and how many it made, by agentId, for the cockpit's drill-down.
+const subWork = new Map<string, { doing: string; tools: number }>()
+const SUBAGENTS_SHOWN = 20
 let inboxBusy = false
 // Inbox lines this session has taken, for the cockpit to tell "queued" from "picked up".
 let inboxSeen = 0
@@ -95,6 +98,15 @@ async function note($: $, kind: Activity['kind'], text: string) {
 
 // The status file the tower pane and the cockpit read for every session. A call without
 // a state keeps the last one, so a tool call can refresh the activity without changing it.
+// The session's subagents, newest last; an engine without $.agent.list() reports none.
+async function subagentsOf($: $) {
+  const list = await $.agent.list().catch(() => [])
+  return list.slice(-SUBAGENTS_SHOWN).map(a => ({
+    id: a.id, name: a.name ?? null, description: a.description, type: a.type, status: a.status, parentId: a.parentId ?? null,
+    doing: subWork.get(a.id)?.doing ?? null, tools: subWork.get(a.id)?.tools ?? 0,
+  }))
+}
+
 async function report($: $, state?: State, message?: string | null) {
   if (state) lastState = state
   if (message !== undefined) lastMessage = message
@@ -130,6 +142,7 @@ async function report($: $, state?: State, message?: string | null) {
       lastPrompt,
       lastAnswer,
       activity,
+      subagents: await subagentsOf($),
       updatedAt: new Date(await $.clock.now()).toISOString(),
     }, null, 2))
   } catch {
@@ -410,10 +423,15 @@ export const registerBeacon: Register = (on, options) => {
   // Every main-loop tool call: one line of activity, and a count of the same call failing in a row.
   on('tool.call', async ($, e, next) => {
     const result = await next(e)
-    if (e.agentId || e.tool === 'AskUserQuestion') return result
+    if (e.tool === 'AskUserQuestion') return result
     // A tool.call carries the tool's arguments beside its envelope fields.
     const { tool, tool_use_id: _id, agentId: _agent, ...args } = e as unknown as Record<string, unknown>
     const text = `${String(tool)} ${describeInput(args)}`.trim()
+    if (e.agentId) {
+      subWork.set(e.agentId, { doing: text, tools: (subWork.get(e.agentId)?.tools ?? 0) + 1 })
+      void report($)
+      return result
+    }
     const failed = 'isError' in result && result.isError === true
     if (failed) {
       const key = `${String(tool)}:${JSON.stringify(args)}`

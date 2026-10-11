@@ -125,6 +125,21 @@ test('the status file carries usage, activity, and a loop of the same failing ca
   expect(status.health).toContain('failed 3× in a row')
 })
 
+test('the status file lists the subagents with what each is doing', async ($, on) => {
+  const host = stubHost(on)
+  on('agent.list', () => ({ value: [{ id: 'ag1', description: 'Find the auth code', type: 'Explore', status: 'running' }] }) as never)
+  on('tool.call', () => ({ result: 'ok', text: 'ok' }) as never)
+
+  await $.tool.call({ tool: 'Grep', pattern: 'verify', agentId: 'ag1' } as never)
+  await $.tool.call({ tool: 'Read', file_path: 'src/auth.ts', agentId: 'ag1' } as never)
+  await new Promise(resolve => setTimeout(() => resolve(undefined), 20))
+
+  const status = host.lastStatus()
+  expect(status.subagents).toEqual([{ id: 'ag1', name: null, description: 'Find the auth code', type: 'Explore', status: 'running', parentId: null, doing: expect.stringContaining('Read'), tools: 2 }])
+  // a subagent's calls stay out of the session's own activity
+  expect(status.activity.some((a: { text: string }) => a.text.startsWith('Grep'))).toBe(false)
+})
+
 test('a held edit carries its diff and the agent\'s reason', { options: { remoteAnswers: 'always' } }, async ($, on) => {
   const host = stubHost(on)
   on('session.start', () => ({ cwd: 'D:/Projects/dbt-platform' }))
