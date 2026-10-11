@@ -13,7 +13,7 @@
     return Object.assign({
       kind: '', state: 'working', hasBeacon: true, canSteer: true, queued: 0, pid: 1000, waited: 0, age: '1m', ctx: 30, cost: 0.4,
       base: 'main', ahead: 1, behind: 0, model: 'Opus 5.5', mode: 'auto', effort: 'high', pending: null, health: null,
-      add: 0, del: 0, files: 0, fileList: [], pr: null, lastPrompt: null, lastAnswer: null, feed: [], lane: []
+      add: 0, del: 0, files: 0, fileList: [], pr: null, lastPrompt: null, lastAnswer: null, feed: [], lane: [], subagents: []
     }, o, { repoRoot: ROOT + o.repo, path: o.path || (ROOT + o.repo + (o.branch === 'main' ? '' : '\\.claude\\worktrees\\' + o.branch.replace(/\//g, '-'))) })
   }
 
@@ -38,6 +38,9 @@
       feed: [[clock(20), 'you', 'Move session auth to the new verifier'], [clock(12), 'tool', 'Write src/auth/verifier.ts'], [clock(1), 'say', 'Swapping the token check to the new verifier.'], [clock(1), 'wait', 'Edit: src/auth/session.ts']],
       lane: [[10, 59, 'working'], [59, 60, 'needs']] }),
     agent({ id: 'a4', repo: 'web', name: 'flaky-tests', branch: 'fix/flaky-e2e', state: 'working', ctx: 48, cost: 0.86, model: 'Sonnet 5.5', mode: 'accept edits',
+      subagents: [{ id: 's1', name: null, description: 'Find which e2e tests flake', type: 'Explore', status: 'completed', parentId: null, doing: 'Grep retries playwright.config.ts', tools: 14 },
+        { id: 's2', name: null, description: 'Rerun checkout.spec 20 times', type: 'general-purpose', status: 'running', parentId: null, doing: 'Bash npx playwright test checkout --repeat-each 20', tools: 3 },
+        { id: 's3', name: null, description: 'Read the test logs', type: 'Explore', status: 'running', parentId: 's2', doing: 'Read test-results/checkout-retry1.log', tools: 2 }],
       health: 'Looping: Bash npm test failed 3× in a row', doing: 'Bash npm test', add: 18, del: 4, files: 2,
       fileList: [['tests/checkout.spec.ts', 14, 3], ['playwright.config.ts', 4, 1]],
       pr: { num: 412, title: '#412 Stabilize checkout e2e tests', url: '#', checks: [['e2e (chromium)', 'fail'], ['unit', 'pass'], ['lint', 'pass']], reviews: 'No approval yet', mergeable: false },
@@ -79,9 +82,11 @@
   var settings = { remoteAnswers: 'launched' }
   var groups = [{ id: 'g1', name: 'rate-limit', task: 'Add rate limiting to the public API. Pick the simplest design that survives a restart.', root: ROOT + 'api', branches: ['rate-limit-1', 'rate-limit-2'] }]
   var done = [
-    { at: ago(15), repo: 'infra', name: 'lint-fix', branch: 'fix/tflint', summary: 'Opened #88; all checks pass.', add: 9, del: 9, files: 3, seconds: 212, cost: 0.12, pr: { num: 88, title: '#88 Fix tflint warnings' } },
+    { id: 'a6', at: ago(15), repo: 'infra', name: 'lint-fix', branch: 'fix/tflint', summary: 'Opened #88; all checks pass.', add: 9, del: 9, files: 3, seconds: 212, cost: 0.12, pr: { num: 88, title: '#88 Fix tflint warnings' } },
     { at: ago(48), repo: 'web', name: 'og-images', branch: 'feat/og', summary: 'Generated Open Graph images for all 24 pages.', add: 310, del: 12, files: 26, seconds: 1340, cost: 0.94, pr: null },
-    { at: ago(95), repo: 'api', name: 'n-plus-one', branch: 'fix/orders-query', summary: 'Orders list is one query now; p95 went from 840 ms to 90 ms.', add: 41, del: 63, files: 4, seconds: 760, cost: 0.58, pr: { num: 233, title: '#233 Load order lines in one query' } }
+    { id: 'gone-1', at: ago(95), repo: 'api', name: 'n-plus-one', branch: 'fix/orders-query', path: ROOT + 'api', model: 'Sonnet 5.5', summary: 'Orders list is one query now; p95 went from 840 ms to 90 ms.',
+      answer: 'Found the N+1: each order loaded its lines separately.\n\nOrders list is one query now; p95 went from 840 ms to 90 ms.',
+      fileList: [['src/orders/list.ts', 22, 41], ['src/orders/list.test.ts', 19, 22]], add: 41, del: 63, files: 4, seconds: 760, cost: 0.58, pr: { num: 233, title: '#233 Load order lines in one query', url: 'https://github.com/example/api/pull/233' } }
   ]
 
   // /demo/?long swaps in the long names real repositories have, to check how the page copes.
@@ -106,10 +111,23 @@
     })
   }
 
+  // Fourteen days of sample spend for the dashboard, oldest first; today counts the done log.
+  var DAILY = [[1.2, 3], [0.4, 1], [2.9, 6], [1.8, 4], [0, 0], [0.6, 2], [3.4, 7], [2.2, 5], [1.1, 3], [4.0, 8], [2.6, 5], [0.9, 2], [3.1, 6]]
+  function stats() {
+    var day = function (n) { var d = new Date(now - n * 86400000); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
+    var today = done.reduce(function (n, r) { return n + r.cost }, 0)
+    var days = DAILY.map(function (d, i) { return { day: day(13 - i), cost: d[0], runs: d[1] } }).concat([{ day: day(0), cost: +today.toFixed(2), runs: done.length }])
+    var runs = days.reduce(function (n, d) { return n + d.runs }, 0)
+    var top = done.slice().sort(function (a, b) { return b.cost - a.cost }).map(function (r) { return { id: r.id, at: r.at, repo: r.repo, name: r.name, cost: r.cost, seconds: r.seconds } })
+    top = [{ id: 'old-1', at: ago(60 * 24 * 4), repo: 'api', name: 'search-rewrite', cost: 2.84, seconds: 4120 }, { id: 'old-2', at: ago(60 * 24 * 6), repo: 'web', name: 'design-tokens', cost: 1.96, seconds: 2710 }].concat(top).slice(0, 5)
+    return { top: top, days: days, runs: runs, cost: +days.reduce(function (n, d) { return n + d.cost }, 0).toFixed(2), avgSeconds: 540,
+      repos: [{ repo: 'api', cost: 9.8, runs: 19 }, { repo: 'web', cost: 7.1, runs: 14 }, { repo: 'dbt-platform', cost: 5.4, runs: 9 }, { repo: 'infra', cost: 2.3, runs: 8 }, { repo: 'tower-mods', cost: 1.2, runs: 3 }] }
+  }
+
   function snapshot() {
     var count = function (s) { return agents.filter(function (a) { return a.state === s }).length }
     return {
-      agents: agents, repos: repos(), error: null, at: Date.now(), settings: settings, done: done,
+      agents: agents, repos: repos(), error: null, at: Date.now(), settings: settings, done: done, stats: stats(),
       usage: { limits: [{ kind: 'five_hour', label: '5-hour', percent: 72, resets: '1h' }, { kind: 'seven_day', label: 'Weekly', percent: 41, resets: '4d' }] },
       groups: groups.map(function (g) {
         return { id: g.id, name: g.name, task: g.task, root: g.root, members: g.branches.map(function (b) {
@@ -144,6 +162,7 @@
   function later(a, say) { setTimeout(function () { if (a.state !== 'working') return; a.state = 'done'; a.doing = say; note(a, 'say', say); publish() }, 4000) }
 
   var ACTIONS = {
+    'clear-done': function () { done = []; return { ok: true, message: 'Cleared the Done log.' } },
     answer: function (b) {
       var a = find(b.id)
       if (!a || !a.pending) return { ok: false, message: 'That request is no longer waiting.' }
@@ -220,7 +239,7 @@
   }
 
   var COMMANDS = [['compact', 'Compact the conversation to free context'], ['clear', 'Start a fresh conversation'], ['cost', 'Show this session\'s cost and usage'],
-    ['context', 'Show what fills the context window'], ['model', 'Switch the model'], ['review', 'Review a pull request'], ['init', 'Write a CLAUDE.md for this repo'],
+    ['context', 'Show what fills the context window'], ['model', 'Switch the model'], ['effort', 'Set the effort level'], ['review', 'Review a pull request'], ['init', 'Write a CLAUDE.md for this repo'],
     ['agents', 'Manage subagents'], ['mcp', 'Manage MCP servers'], ['superpowers:brainstorming', 'Explore an idea before building it']]
     .map(function (c) { return { name: c[0], description: c[1] } })
 

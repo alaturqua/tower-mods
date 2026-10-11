@@ -1,6 +1,6 @@
 var PREFS_KEY = 'tower-cockpit-prefs';
 var COLORS = { needs: 'var(--warn)', working: 'var(--work)', done: 'var(--ok)', idle: 'var(--faint)', stuck: 'var(--bad)' };
-var TINTS = { needs: 'var(--warn-tint)', working: 'var(--work-tint)', done: 'var(--ok-tint)', idle: 'var(--line-soft)' };
+var TINTS = { needs: 'var(--warn-tint)', working: 'var(--work-tint)', done: 'var(--ok-tint)', idle: 'var(--line-soft)', stuck: 'var(--bad-tint)' };
 var LABELS = { needs: 'needs you', working: 'working', done: 'done', idle: 'idle' };
 var RANK = { needs: 0, working: 1, done: 2, idle: 3 };
 var ICONS = { you: '›', tool: '▸', say: '◆', wait: '!', sent: '↗' };
@@ -9,6 +9,9 @@ var DIFF_STYLES = { hunk: 'color: var(--muted)', ctx: 'color: var(--text2)', del
 var SEG = { working: 'var(--work)', needs: 'var(--warn)', stuck: 'var(--bad)', done: 'var(--ok)', idle: 'transparent' };
 var MODELS = [['', 'Default model'], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku']];
 var MODES = [['auto', 'auto'], ['acceptEdits', 'accept edits'], ['plan', 'plan first'], ['default', 'ask for everything']];
+var EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+// A subagent's status as one of the fleet's own state colors.
+var SUB_TONES = { pending: 'working', running: 'working', waiting: 'needs', idle: 'idle', completed: 'done', failed: 'stuck', killed: 'stuck' };
 // Shown when a session has not published its own list (it started before this plugin
 // could): Claude Code's everyday built-ins, typed in full they all still run.
 var BUILTIN_COMMANDS = [
@@ -34,6 +37,17 @@ function pill(state) {
   return 'justify-self: start; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: ' + TINTS[state] + '; color: ' + (state === 'idle' ? 'var(--muted)' : COLORS[state]);
 }
 function money(n) { return '$' + (Number(n) || 0).toFixed(2); }
+// A meter's fill: amber from 70%, red from 90%, as the header's rate-limit chips.
+function meter(percent) {
+  var p = Math.max(0, Math.min(100, Number(percent) || 0));
+  return 'display: block; height: 100%; width: ' + p + '%; background: ' + (p >= 90 ? 'var(--bad)' : p >= 70 ? 'var(--warn)' : 'var(--bar)');
+}
+function running(a) {
+  var n = (a.subagents || []).filter(function (s) { return SUB_TONES[s.status] === 'working'; }).length;
+  return n ? n + (n === 1 ? ' subagent' : ' subagents') + ' running' : '';
+}
+function doneKey(r) { return 'done:' + r.at + ':' + (r.id || r.name); }
+function folderOf(path) { return String(path || '').replace(/[\\/]+$/, '').split(/[\\/]/).pop(); }
 function key(path) { return String(path || '').toLowerCase().replace(/[\\/]+$/, ''); }
 function sum(list, field) { return list.reduce(function (n, a) { return n + (a[field] || 0); }, 0); }
 function worstOf(list) {
@@ -53,7 +67,7 @@ class Component extends DCLogic {
     try { systemLight = window.matchMedia('(prefers-color-scheme: light)').matches; } catch (err) {}
     this.state = {
       data: { agents: [], repos: [], totals: { total: 0, needs: 0, working: 0, done: 0, alerts: 0, cost: 0 }, usage: { limits: [] }, done: [], groups: [], settings: {}, error: null },
-      remoteDismissed: Boolean(saved.remoteDismissed), formCopies: 1,
+      remoteDismissed: Boolean(saved.remoteDismissed), formCopies: 1, switching: {},
       conn: 'connecting', repo: 'all', ws: null, selected: null, draft: '', checked: {}, bulkDraft: '', tab: 'activity',
       view: saved.view || 'fleet', theme: saved.theme || 'system', systemLight: systemLight,
       folded: saved.folded || {}, railCollapsed: Boolean(saved.railCollapsed), detailCollapsed: Boolean(saved.detailCollapsed),
@@ -73,6 +87,41 @@ class Component extends DCLogic {
       this.mq.addEventListener('change', function (e) { self.setState({ systemLight: e.matches }); });
     } catch (err) {}
     document.addEventListener('keydown', function (e) { self.onKey(e); });
+    // The ⋯ dropdown follows its button when the page scrolls or resizes; gone, it closes.
+    var follow = function () {
+      if (String(self.state.menuFor).indexOf('agent:') !== 0) return;
+      if (self.menuAnchor && self.menuAnchor.isConnected) self.setState({ menuAt: self.anchorAt(self.menuAnchor) });
+      else self.setState({ menuFor: null });
+    };
+    window.addEventListener('scroll', follow, true);
+    window.addEventListener('resize', follow);
+  }
+
+  // Closing a row's dropdown hands focus back to its ⋯, so a keyboard user stays in place.
+  closeAgentMenu() {
+    var anchor = this.menuAnchor;
+    this.setState({ menuFor: null });
+    if (anchor && anchor.isConnected && anchor.focus) setTimeout(function () { anchor.focus(); }, 0);
+  }
+
+  anchorAt(b) {
+    var r = b.getBoundingClientRect();
+    return { top: r.bottom + 4, bottom: window.innerHeight - r.top + 4, right: Math.max(8, window.innerWidth - r.right), up: r.bottom + 320 > window.innerHeight };
+  }
+
+  // A row's or card's ⋯ opens a dropdown fixed beside the button, drawn outside the table so
+  // its scroll box never clips it; near the window's bottom it opens upward.
+  openAgentMenu(id, e) {
+    if (this.state.menuFor === 'agent:' + id) { this.setState({ menuFor: null }); return; }
+    this.menuAnchor = (e && e.target && e.target.closest ? e.target.closest('button') : null) || document.body;
+    this.setState({ menuFor: 'agent:' + id, menuAt: this.anchorAt(this.menuAnchor), menuConfirm: null });
+    setTimeout(function () { var first = document.querySelector('#agent-menu [role=menuitem]'); if (first) first.focus(); }, 0);
+  }
+
+  // A new view starts at the top of the main column, not wherever the last one was scrolled.
+  showView(view) {
+    this.remember({ view: view });
+    setTimeout(function () { var col = document.querySelector('main.tw-col'); if (col) col.scrollTo({ top: 0 }); }, 0);
   }
 
   remember(patch) {
@@ -183,6 +232,41 @@ class Component extends DCLogic {
       style: 'min-height: 34px; padding: 0 10px; border: none; border-radius: 6px; background: transparent; text-align: left; font-size: 13px; color: ' + (danger ? 'var(--bad-text)' : 'var(--text)'),
       run: function () { self.setState({ menuFor: null }); run(); }
     };
+  }
+
+  // A row's or card's ⋯ actions: the same list for every session, so it can be learned once.
+  // What this session can't do stays listed, greyed, with the reason. The two that lose work
+  // sit last, below a divider, and ask again in place instead of in a browser dialog.
+  agentMenu(a) {
+    var self = this, st = this.state, say = function (text) { self.post('send', { id: a.id, text: text }); };
+    var has = function (name) { return (st.commands[a.id] || []).some(function (c) { return c.name === name; }); };
+    var deaf = a.canSteer ? '' : 'This session can\'t receive from the cockpit';
+    var item = function (label, why, run, confirmLabel) {
+      var asking = Boolean(confirmLabel) && st.menuConfirm === label;
+      return {
+        isItem: true, isSep: false, label: asking ? confirmLabel : label, reason: why || '', hasReason: Boolean(why), off: Boolean(why),
+        style: 'display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-height: 36px; padding: 6px 10px; border: none; border-radius: 6px; text-align: left; font: inherit; font-size: 13px; cursor: ' + (why ? 'default' : 'pointer') + '; background: ' + (asking ? 'var(--bad-tint)' : 'transparent') + '; color: ' + (why ? 'var(--faint)' : confirmLabel ? 'var(--bad-text)' : 'var(--text)') + (asking ? '; font-weight: 600' : ''),
+        run: function () {
+          if (why) return;
+          if (confirmLabel && !asking) { self.setState({ menuConfirm: label }); return; }
+          self.closeAgentMenu();
+          run();
+        }
+      };
+    };
+    return [
+      item('Continue', deaf || (a.state === 'done' || a.state === 'idle' ? '' : 'Only once it has finished or is idle'), function () { say('continue'); }),
+      item('Compact', deaf, function () { say('/compact'); }),
+      item('Rename…', deaf || (has('rename') ? '' : 'This session has no /rename command'), function () {
+        var name = window.prompt('New name for ' + a.repo + ' · ' + a.name + ':', a.name);
+        if (name && name.trim()) say('/rename ' + name.trim());
+      }),
+      item('Open in editor', '', function () { self.post('open-editor', { path: a.path }); }),
+      item('Jump to terminal', '', function () { self.post('jump', { id: a.id, kind: a.kind, pid: a.pid, path: a.path }); }),
+      { isItem: false, isSep: true },
+      item('Clear conversation', deaf, function () { say('/clear'); }, 'Click again to clear it (files stay)'),
+      item('Stop', a.kind === 'bg' ? '' : 'Only background agents stop from here', function () { self.post('stop', { id: a.id, kind: a.kind }); }, 'Click again to stop it')
+    ];
   }
 
   // Refused while it has uncommitted changes; then a second, explicit confirm forces it.
@@ -311,11 +395,23 @@ class Component extends DCLogic {
 
   // J/K walk the waiting agents, A/D allow or deny, 1-4 answer, X selects, T toggles the timeline.
   onKey(e) {
+    if (String(this.state.menuFor).indexOf('agent:') === 0) {
+      var items = [].slice.call(document.querySelectorAll('#agent-menu [role=menuitem]'));
+      var at = items.indexOf(document.activeElement);
+      if (e.key === 'Escape' || e.key === 'Tab') { this.closeAgentMenu(); e.preventDefault(); return; }
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && items.length) {
+        items[e.key === 'ArrowDown' ? (at + 1) % items.length : (at <= 0 ? items.length - 1 : at - 1)].focus();
+        e.preventDefault();
+        return;
+      }
+    }
+    if (e.key === 'Escape' && String(this.state.selected).indexOf('done:') === 0) { this.setState({ selected: null }); e.preventDefault(); return; }
     var tag = (e.target && e.target.tagName) || '';
     if (/INPUT|TEXTAREA|SELECT/.test(tag) || e.ctrlKey || e.metaKey || e.altKey) return;
     var list = this.agents();
     var needs = list.filter(function (a) { return a.state === 'needs'; });
-    var sel = this.selectedAgent(list);
+    // A finished run in the panel is read-only: no key may answer an agent that isn't shown.
+    var sel = String(this.state.selected).indexOf('done:') === 0 ? null : this.selectedAgent(list);
     var k = e.key.toLowerCase();
     if ((k === 'j' || k === 'k') && needs.length) {
       var at = Math.max(0, needs.indexOf(sel));
@@ -337,6 +433,56 @@ class Component extends DCLogic {
       return;
     }
     e.preventDefault();
+  }
+
+  // The dashboard: one line of facts, then where the money went (per day, per repo, the
+  // costliest runs) and which agents are running out of context. One series per chart, so
+  // color never stands for a category; every bar names its value on hover and in a hidden table.
+  dashVals(data, live, waitedMinutes, duration) {
+    var self = this;
+    var stats = data.stats || { days: [], repos: [], top: [], runs: 0, cost: 0, avgSeconds: 0 };
+    var maxDay = Math.max.apply(null, [0.01].concat(stats.days.map(function (d) { return d.cost; })));
+    var maxRepo = Math.max.apply(null, [0.01].concat(stats.repos.map(function (r) { return r.cost; })));
+    var date = function (day) { var d = new Date(day + 'T12:00:00'); return isNaN(d) ? day : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); };
+    var runs = function (n) { return n === 1 ? '1 run' : n + ' runs'; };
+    var peak = stats.days.reduce(function (a, d) { return d.cost > a.cost ? d : a; }, { cost: 0, day: '' });
+    var today = stats.days[stats.days.length - 1] || { cost: 0, runs: 0 };
+    var waited = Math.round(waitedMinutes);
+    return {
+      // The header already shows live spend and states; these are the numbers it doesn't.
+      tiles: [
+        { label: 'Runs, last 14 days', value: String(stats.runs), style: 'font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text)' },
+        { label: 'Spent, last 14 days', value: money(stats.cost), style: 'font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text)' },
+        { label: 'Average run', value: stats.runs ? duration(stats.avgSeconds) : '—', style: 'font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text)' },
+        { label: 'Kept waiting, last hour', value: waited + ' min', style: 'font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; color: ' + (waited >= 5 ? 'var(--warn)' : 'var(--text)') }
+      ],
+      hasDays: stats.runs > 0, noDays: stats.runs === 0,
+      maxDay: money(maxDay),
+      daySummary: 'Spend on finished runs per day, last 14 days. ' + (peak.cost ? 'Highest ' + money(peak.cost) + ' on ' + date(peak.day) + '. ' : '') + 'Today ' + money(today.cost) + ' over ' + runs(today.runs) + '.',
+      days: stats.days.map(function (d, i) {
+        var last = i === stats.days.length - 1;
+        return { date: date(d.day), cost: money(d.cost), runs: runs(d.runs), title: date(d.day) + ': ' + money(d.cost) + ' · ' + runs(d.runs),
+          tick: last ? 'today' : i % 2 === 1 ? String(new Date(d.day + 'T12:00:00').getDate()) : '',
+          // Today in the ink color, not the "working" cyan: it is a date, not a state.
+          style: 'display: block; width: 100%; height: ' + (d.cost ? Math.max(2, d.cost / maxDay * 100) : 0) + '%; border-radius: 4px 4px 0 0; background: ' + (last ? 'var(--text2)' : 'var(--bar)') };
+      }),
+      repos: stats.repos.map(function (r) {
+        return { repo: r.repo, value: money(r.cost) + ' · ' + runs(r.runs), title: r.repo + ': ' + money(r.cost) + ' over ' + runs(r.runs),
+          style: 'display: block; height: 100%; border-radius: 0 4px 4px 0; width: ' + Math.max(1, r.cost / maxRepo * 100) + '%; background: var(--bar)' };
+      }),
+      top: (stats.top || []).map(function (r) {
+        var rec = (data.done || []).filter(function (x) { return x.at === r.at && (x.id || x.name) === (r.id || r.name); })[0];
+        return { name: r.repo + ' · ' + r.name, when: date(String(r.at).slice(0, 10)), cost: money(r.cost), took: duration(r.seconds),
+          canOpen: Boolean(rec), noOpen: String(!rec), title: rec ? 'Open what this run did' : 'Older than the Done log keeps',
+          open: function () { if (rec) self.setState({ selected: doneKey(rec), draft: '' }); } };
+      }),
+      hasTop: (stats.top || []).length > 0,
+      contexts: live.slice().sort(function (a, b) { return b.ctx - a.ctx; }).slice(0, 6).map(function (a) {
+        return { name: a.repo + ' · ' + a.name, pct: a.ctx + '%', title: 'Open ' + a.repo + ' · ' + a.name + ': context ' + a.ctx + '% full', bar: meter(a.ctx),
+          open: function () { self.setState({ selected: a.id, draft: '' }); } };
+      }),
+      hasContexts: live.length > 0, noContexts: live.length === 0
+    };
   }
 
   renderVals() {
@@ -412,7 +558,9 @@ class Component extends DCLogic {
     });
 
     var scoped = live.filter(function (a) { return (st.repo === 'all' || key(a.repoRoot) === key(st.repo)) && (!st.ws || a.branch === st.ws); });
-    var sel = this.selectedAgent(scoped.length ? scoped : live);
+    // A finished run whose session has ended takes the panel, read-only, until an agent is picked.
+    var run = (data.done || []).filter(function (r) { return st.selected === doneKey(r); })[0] || null;
+    var sel = run ? null : this.selectedAgent(scoped.length ? scoped : live);
     if (sel) this.loadCommands(sel.id);
 
     var agents = scoped.map(function (a) {
@@ -424,12 +572,16 @@ class Component extends DCLogic {
         prStyle: "font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: " + (!a.pr ? 'var(--faint)' : (pr.indexOf('✗') >= 0 ? 'var(--bad)' : 'var(--ok)')),
         hasHealth: Boolean(a.health), health: a.health || '',
         dot: dot(a.health ? 'stuck' : a.state, 10), pill: pill(a.state),
-        ctxBar: 'display: block; height: 100%; width: ' + a.ctx + '%; background: ' + (a.ctx >= 80 ? 'var(--bad)' : 'var(--bar)'),
-        rowStyle: 'display: grid; grid-template-columns: 40px 1fr; align-items: center; border-bottom: 1px solid var(--line-soft); background: ' + (chosen ? 'var(--row-sel)' : 'transparent') + '; box-shadow: ' + (chosen ? 'inset 3px 0 0 var(--work)' : 'none'),
+        ctxBar: meter(a.ctx),
+        subsRunning: running(a), hasSubsRunning: running(a) !== '',
+        rowStyle: 'display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; border-bottom: 1px solid var(--line-soft); background: ' + (chosen ? 'var(--row-sel)' : 'transparent') + '; box-shadow: ' + (chosen ? 'inset 3px 0 0 var(--work)' : 'none'),
         cardStyle: 'display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 12px; background: ' + (chosen ? 'var(--row-sel)' : 'var(--panel)') + '; border: 1px solid ' + (chosen ? 'var(--info-edge)' : 'var(--line)') + '; border-top: 3px solid ' + COLORS[a.health ? 'stuck' : a.state],
         checked: Boolean(st.checked[a.id]),
         toggle: function () { var c = Object.assign({}, self.state.checked); if (c[a.id]) delete c[a.id]; else c[a.id] = true; self.setState({ checked: c }); },
-        pick: function () { self.setState({ selected: a.id, draft: '' }); }
+        pick: function () { self.setState({ selected: a.id, draft: '' }); },
+        menuExpanded: String(st.menuFor === 'agent:' + a.id),
+        menuLabel: 'Actions for ' + a.repo + ' · ' + a.name,
+        toggleMenu: function (e) { self.loadCommands(a.id); self.openAgentMenu(a.id, e); }
       };
     });
 
@@ -452,6 +604,8 @@ class Component extends DCLogic {
       (a.lane || []).forEach(function (s) { if (s[2] === 'needs') waitedMinutes += s[1] - s[0]; });
       return {
         repo: a.repo, name: a.name,
+        pick: function () { self.setState({ selected: a.id, draft: '' }); },
+        rowStyle: 'display: grid; grid-template-columns: minmax(120px, 200px) minmax(0, 1fr); gap: 12px; align-items: center; width: calc(100% + 12px); min-height: 32px; padding: 2px 6px; margin: 0 -6px; border: none; border-radius: 6px; text-align: left; font: inherit; color: var(--text); cursor: pointer; background: ' + (sel && sel.id === a.id ? 'var(--row-sel)' : 'transparent'),
         segs: (a.lane || []).filter(function (s) { return s[2] !== 'idle'; }).map(function (s) {
           return { title: s[2] + ' ' + Math.round(60 - s[0]) + '–' + Math.round(60 - s[1]) + ' min ago',
             style: 'position: absolute; top: 3px; bottom: 3px; border-radius: 3px; left: ' + (s[0] / 60 * 100) + '%; width: ' + ((s[1] - s[0]) / 60 * 100) + '%; background: ' + SEG[s[2]] };
@@ -460,7 +614,8 @@ class Component extends DCLogic {
     });
 
     var checkedIds = Object.keys(st.checked).filter(function (id) { return live.some(function (a) { return a.id === id; }); });
-    var tabDefs = [['activity', 'Activity'], ['changes', 'Changes'], ['pr', 'Pull request']];
+    var subs = (sel && sel.subagents) || [];
+    var tabDefs = [['activity', 'Activity'], ['changes', 'Changes'], ['subagents', subs.length ? 'Subagents · ' + subs.length : 'Subagents'], ['pr', 'Pull request']];
     var viewBtn = function (on) { return 'min-height: 34px; padding: 0 14px; border-radius: 7px; border: none; font-weight: 600; background: ' + (on ? 'var(--seg-on)' : 'transparent') + '; color: ' + (on ? 'var(--text)' : 'var(--muted)'); };
     var themeAttr = st.theme === 'system' ? (st.systemLight ? 'light' : 'dark') : st.theme;
     var segBtn = function (on) { return 'min-height: 34px; padding: 0 12px; border-radius: 7px; border: none; font-size: 13px; font-weight: 600; background: ' + (on ? 'var(--seg-on)' : 'transparent') + '; color: ' + (on ? 'var(--text)' : 'var(--muted)') + '; box-shadow: ' + (on ? '0 0 0 1px var(--line)' : 'none'); };
@@ -475,10 +630,19 @@ class Component extends DCLogic {
     var wsPr = wsTree && wsTree.pr;
     var p = sel && sel.pending;
     var cmds = (sel && st.commands[sel.id]) || [];
+    var moving = function (what) { var m = sel && st.switching[sel.id + '|' + what]; return m && m.from === sel[what] ? m : null; };
+    var movingModel = moving('model'), movingEffort = moving('effort');
     var inScope = function (root) { return st.repo === 'all' || key(root) === key(st.repo); };
     var scopeName = wsRepo ? wsRepo.name : null;
     var chip = function (tone) { return 'display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: 13px; font-family: \'IBM Plex Mono\', monospace; background: ' + (tone === 'bad' ? 'var(--bad-tint)' : tone === 'warn' ? 'var(--warn-tint)' : 'var(--chip)') + '; color: ' + (tone === 'bad' ? 'var(--bad)' : tone === 'warn' ? 'var(--warn)' : 'var(--muted)'); };
-    var duration = function (s) { return s < 60 ? s + 's' : s < 3600 ? Math.floor(s / 60) + 'm ' + (s % 60) + 's' : Math.floor(s / 3600) + 'h ' + Math.round((s % 3600) / 60) + 'm'; };
+    // "9m", not "9m 0s": a zero part says nothing.
+    var duration = function (s) {
+      s = Math.round(s);
+      if (s < 60) return s + 's';
+      if (s < 3600) return Math.floor(s / 60) + 'm' + (s % 60 ? ' ' + (s % 60) + 's' : '');
+      var m = Math.round((s % 3600) / 60);
+      return Math.floor(s / 3600) + 'h' + (m ? ' ' + m + 'm' : '');
+    };
     var changes = function (x) { return '+' + (x.add || 0) + ' −' + (x.del || 0) + ' · ' + (x.files || 0) + ' files'; };
 
     var limits = ((data.usage && data.usage.limits) || []).map(function (l) {
@@ -486,13 +650,24 @@ class Component extends DCLogic {
         style: chip(l.percent >= 90 ? 'bad' : l.percent >= 70 ? 'warn' : '') };
     });
 
+    var whenOf = function (at) {
+      var when = new Date(at);
+      if (isNaN(when.getTime())) return { time: '', day: '' };
+      return { time: String(when.getHours()).padStart(2, '0') + ':' + String(when.getMinutes()).padStart(2, '0'),
+        day: when.toDateString() === new Date().toDateString() ? 'today' : when.toLocaleDateString() };
+    };
     var doneItems = (data.done || []).filter(function (r) { return st.repo === 'all' || r.repo === scopeName; }).map(function (r) {
-      var when = new Date(r.at);
+      var when = whenOf(r.at), on = run === r;
       return {
-        when: isNaN(when.getTime()) ? '' : String(when.getHours()).padStart(2, '0') + ':' + String(when.getMinutes()).padStart(2, '0'),
-        day: isNaN(when.getTime()) ? '' : when.toDateString() === new Date().toDateString() ? 'today' : when.toLocaleDateString(),
+        when: when.time, day: when.day,
         repo: r.repo, name: r.name, branch: r.branch, summary: r.summary || 'Finished.', changes: changes(r),
-        took: duration(r.seconds || 0), cost: money(r.cost), pr: r.pr ? r.pr.title : '', hasPr: Boolean(r.pr)
+        took: duration(r.seconds || 0), cost: money(r.cost), pr: r.pr ? r.pr.title : '', hasPr: Boolean(r.pr),
+        rowStyle: 'display: grid; grid-template-columns: 72px 1fr auto; gap: 12px; align-items: baseline; width: 100%; padding: 12px 16px; border: none; text-align: left; font: inherit; color: var(--text); background: ' + (on ? 'var(--row-sel)' : 'transparent') + '; box-shadow: ' + (on ? 'inset 3px 0 0 var(--ok)' : 'none'),
+        // Still running: its live panel says more than the record does.
+        open: function () {
+          var alive = r.id && live.some(function (a) { return a.id === r.id; });
+          self.setState({ selected: alive ? r.id : doneKey(r), draft: '' });
+        }
       };
     });
 
@@ -531,7 +706,25 @@ class Component extends DCLogic {
 
     return {
       usage: { limits: limits },
-      doneLog: { items: doneItems, empty: doneItems.length === 0 },
+      floatMenu: (function () {
+        var id = String(st.menuFor).indexOf('agent:') === 0 ? st.menuFor.slice(6) : null;
+        var a = id && live.filter(function (x) { return x.id === id; })[0];
+        if (!a || !st.menuAt) return { open: false };
+        var at = st.menuAt;
+        return {
+          open: true, label: 'Actions for ' + a.repo + ' · ' + a.name, items: self.agentMenu(a),
+          close: function () { self.closeAgentMenu(); },
+          style: 'position: fixed; z-index: 21; right: ' + at.right + 'px; ' + (at.up ? 'bottom: ' + at.bottom : 'top: ' + at.top) + 'px; min-width: 240px; max-width: 320px; display: flex; flex-direction: column; padding: 4px; border-radius: 10px; border: 1px solid var(--edge); background: var(--panel); box-shadow: 0 12px 32px rgba(0,0,0,0.28)'
+        };
+      })(),
+      doneLog: {
+        items: doneItems, empty: doneItems.length === 0, any: doneItems.length > 0,
+        count: doneItems.length === 1 ? '1 finished run' : doneItems.length + ' finished runs',
+        clear: function () {
+          if (!window.confirm('Clear the Done log? Every finished run is forgotten (~/.claude/tower/history.jsonl is deleted). Running sessions are not touched.')) return;
+          self.post('clear-done', {}).then(function (res) { if (res.ok && String(self.state.selected).indexOf('done:') === 0) self.setState({ selected: null }); });
+        }
+      },
       compare: { show: groups.length > 0, groups: groups },
       queue: { show: queues.length > 0, items: queues },
       optIn: {
@@ -565,6 +758,20 @@ class Component extends DCLogic {
       detail: {
         isCollapsed: Boolean(sel) && st.detailCollapsed, isOpen: Boolean(sel) && !st.detailCollapsed,
         toggle: function () { self.remember({ detailCollapsed: !self.state.detailCollapsed }); }
+      },
+      run: !run ? { show: false } : {
+        show: true,
+        ended: 'Finished ' + whenOf(run.at).time + ' ' + whenOf(run.at).day + '. This session has ended, so this is what it recorded.',
+        repo: run.repo, name: run.name, branch: run.branch || '—',
+        folder: folderOf(run.path) || run.repo, path: run.path || '', hasPath: Boolean(run.path),
+        model: run.model || '', hasModel: Boolean(run.model),
+        took: duration(run.seconds || 0), cost: money(run.cost), changes: changes(run),
+        answer: run.answer || run.summary || 'It recorded no final message.',
+        files: (run.fileList || []).map(function (f) { return { path: f[0], add: String(f[1]), del: String(f[2]) }; }),
+        hasFiles: Boolean(run.fileList && run.fileList.length),
+        hasPr: Boolean(run.pr), prTitle: run.pr ? run.pr.title : '', prUrl: (run.pr && run.pr.url) || '', hasPrUrl: Boolean(run.pr && run.pr.url), noPrUrl: !(run.pr && run.pr.url),
+        openEditor: function () { self.post('open-editor', { path: run.path }); },
+        close: function () { self.setState({ selected: null }); }
       },
       rail: {
         isCollapsed: st.railCollapsed, isOpen: !st.railCollapsed,
@@ -631,11 +838,18 @@ class Component extends DCLogic {
         isFleet: st.view === 'fleet', isCards: st.view === 'cards', isTimeline: st.view === 'timeline', isDone: st.view === 'done',
         fleetPressed: String(st.view === 'fleet'), cardsPressed: String(st.view === 'cards'), timelinePressed: String(st.view === 'timeline'), donePressed: String(st.view === 'done'),
         fleetStyle: viewBtn(st.view === 'fleet'), cardsStyle: viewBtn(st.view === 'cards'), timelineStyle: viewBtn(st.view === 'timeline'), doneStyle: viewBtn(st.view === 'done'),
-        showFleet: function () { self.remember({ view: 'fleet' }); },
-        showCards: function () { self.remember({ view: 'cards' }); },
-        showTimeline: function () { self.remember({ view: 'timeline' }); },
-        showDone: function () { self.remember({ view: 'done' }); }
+        showFleet: function () { self.showView('fleet'); },
+        showCards: function () { self.showView('cards'); },
+        showTimeline: function () { self.showView('timeline'); },
+        showDone: function () { self.showView('done'); },
+        isDash: st.view === 'dash', dashPressed: String(st.view === 'dash'), dashStyle: viewBtn(st.view === 'dash'),
+        showDash: function () { self.showView('dash'); },
+        isTriage: st.view === 'fleet' || st.view === 'cards',
+        showNeeds: function () {
+          self.showView(st.view === 'cards' ? 'cards' : 'fleet');
+        }
       },
+      dash: this.dashVals(data, live, waitedMinutes, duration),
       hasChecked: checkedIds.length > 0,
       bulk: {
         count: String(checkedIds.length), draft: st.bulkDraft,
@@ -659,12 +873,44 @@ class Component extends DCLogic {
         return { label: t[1], selected: String(on), pick: function () { self.setState({ tab: t[0] }); },
           style: 'min-height: 40px; padding: 0 12px; border: none; background: transparent; margin-bottom: -1px; font-weight: 600; color: ' + (on ? 'var(--text)' : 'var(--muted)') + '; border-bottom: 2px solid ' + (on ? 'var(--work)' : 'transparent') };
       }),
-      tabIs: { activity: st.tab === 'activity', changes: st.tab === 'changes', pr: st.tab === 'pr' },
+      tabIs: { activity: st.tab === 'activity', changes: st.tab === 'changes', subagents: st.tab === 'subagents', pr: st.tab === 'pr' },
       sel: !sel ? {} : {
         repo: sel.repo, name: sel.name, path: sel.path, branch: sel.branch, model: sel.model, mode: sel.mode,
         stateLabel: LABELS[sel.state], dot: dot(sel.health ? 'stuck' : sel.state, 10), pill: pill(sel.state),
         hasHealth: Boolean(sel.health), health: sel.health || '',
-        usage: money(sel.cost) + (sel.budget ? ' of a ' + money(sel.budget) + ' budget' : ' spent') + ' · context ' + sel.ctx + '%' + (sel.effort ? ' · effort ' + sel.effort : '') + (sel.hasBeacon ? '' : ' · no beacon in this session'),
+        folder: folderOf(sel.path) || sel.repo,
+        // The worktree folder only says something new when it is neither the repo nor the branch.
+        showFolder: [sel.repo, String(sel.branch).replace(/[\/]/g, '-')].indexOf(folderOf(sel.path)) < 0 && Boolean(sel.path),
+        costText: money(sel.cost) + (sel.budget ? ' of ' + money(sel.budget) : ' spent'),
+        hasBudget: Boolean(sel.budget), noBudget: !sel.budget, costBar: meter(sel.budget ? sel.cost / sel.budget * 100 : 0),
+        ctx: String(sel.ctx), ctxBar: meter(sel.ctx),
+        noBeacon: !sel.hasBeacon,
+        // Model and effort switch by sending the slash command, which runs once the session is idle.
+        // Until it reports the new value, the current one reads "old → new…".
+        steerTitle: sel.canSteer ? 'Sends the slash command; it applies when the session is idle' : 'This session can\'t receive from the cockpit',
+        models: (function () {
+          var to = movingModel ? ' → ' + movingModel.to + '…' : '';
+          return [{ value: '', label: (sel.model || 'Model') + to }].concat(MODELS.filter(function (m) {
+            return m[0] && String(sel.model || '').toLowerCase().indexOf(m[0]) !== 0;
+          }).map(function (m) { return { value: m[0], label: m[1] }; }));
+        })(),
+        pickModel: function (e) {
+          var v = e.target.value, label = (MODELS.filter(function (m) { return m[0] === v; })[0] || [])[1];
+          if (!v || !sel.canSteer) return;
+          self.post('send', { id: sel.id, text: '/model ' + v });
+          self.setState({ switching: Object.assign({}, self.state.switching, { [sel.id + '|model']: { from: sel.model, to: label } }) });
+        },
+        hasEffort: Boolean(sel.effort) && cmds.some(function (c) { return c.name === 'effort'; }),
+        effortValue: sel.effort || '',
+        efforts: (EFFORTS.indexOf(sel.effort) < 0 && sel.effort ? [sel.effort] : []).concat(EFFORTS).map(function (v) {
+          return { value: v, label: v + (movingEffort && v === sel.effort ? ' → ' + movingEffort.to + '…' : '') };
+        }),
+        pickEffort: function (e) {
+          var v = e.target.value;
+          if (!v || v === sel.effort || !sel.canSteer) return;
+          self.post('send', { id: sel.id, text: '/effort ' + v });
+          self.setState({ switching: Object.assign({}, self.state.switching, { [sel.id + '|effort']: { from: sel.effort, to: v } }) });
+        },
         hasPending: Boolean(p),
         kindLabel: p ? (p.kind === 'question' ? 'Asks you' : p.kind === 'edit' ? 'Wants to edit' : p.kind === 'local' ? 'Waiting in its terminal' : 'Wants to run') : '',
         detail: p ? p.detail : '',
@@ -673,6 +919,15 @@ class Component extends DCLogic {
         feed: (sel.feed || []).slice().reverse().map(function (f) {
           return { t: f[0], icon: ICONS[f[1]] || '·', iconStyle: 'color: ' + (ICON_COLORS[f[1]] || 'var(--muted)') + '; font-weight: 700', text: f[2],
             textStyle: f[1] === 'you' ? 'color: var(--muted); font-style: italic' : (f[1] === 'wait' ? 'color: var(--warn)' : 'color: var(--text)') };
+        }),
+        noSubagents: subs.length === 0,
+        subagents: subs.map(function (s) {
+          var tone = SUB_TONES[s.status] || 'idle';
+          return { description: s.description || s.name || s.type, type: s.type, statusLabel: s.status, pill: pill(tone),
+            doing: s.doing || (tone === 'working' ? 'Starting…' : ''), hasDoing: Boolean(s.doing || tone === 'working'),
+            tools: s.tools ? s.tools + (s.tools === 1 ? ' tool call' : ' tool calls') : '',
+            // One level of nesting is enough to tell a subagent's own subagents apart.
+            style: 'display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); margin-left: ' + (s.parentId ? '18px' : '0') };
         }),
         add: String(sel.add), del: String(sel.del), files: String(sel.files),
         fileList: (sel.fileList || []).map(function (f) { return { path: f[0], add: String(f[1]), del: String(f[2]) }; }),

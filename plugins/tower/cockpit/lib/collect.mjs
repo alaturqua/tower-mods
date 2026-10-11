@@ -2,7 +2,7 @@
 // files, git per working folder, and open PRs. Slow sources are cached.
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { appendFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { appendFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -167,6 +167,10 @@ export async function historyOf(limit = 50) {
   } catch {
     return []
   }
+}
+
+export async function clearHistory() {
+  await rm(HISTORY_FILE(), { force: true })
 }
 
 export async function recordDone(records) {

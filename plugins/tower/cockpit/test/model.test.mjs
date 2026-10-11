@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { conflictsOf, feedOf, finishedOf, groupsOf, healthOf, laneOf, markConflicts, modelName, pendingOf, reposOf, riskOf, stateOf, toAgent, totalsOf, usageOf } from '../lib/model.mjs'
+import { conflictsOf, feedOf, finishedOf, groupsOf, healthOf, statsOf, laneOf, markConflicts, modelName, pendingOf, reposOf, riskOf, stateOf, toAgent, totalsOf, usageOf } from '../lib/model.mjs'
 
 const NOW = Date.parse('2026-10-06T14:00:00Z')
 const row = (over = {}) => ({ sessionId: 's1', cwd: 'D:\\Projects\\api', kind: 'interactive', name: 'api-1a', status: 'idle', startedAt: NOW - 3600000, ...over })
@@ -129,12 +129,15 @@ test('usage takes each rate-limit window from the session that reported it last'
 test('a run that ends in done is recorded once, with what it cost', () => {
   const last = new Map(), began = new Map()
   assert.deepEqual(finishedOf([agent({ state: 'working', cost: 1 })], last, began, NOW), [])
-  const done = agent({ state: 'done', cost: 1.75, add: 5, del: 1, files: 2, lastAnswer: 'Fixed it.\n\nAll tests pass.', pr: { num: 9, title: '#9 Fix', checks: [] } })
+  const done = agent({ state: 'done', cost: 1.75, add: 5, del: 1, files: 2, fileList: [['a.js', 4, 1]], lastAnswer: 'Fixed it.\n\nAll tests pass.', pr: { num: 9, title: '#9 Fix', url: 'https://x/9', checks: [] } })
   const [rec] = finishedOf([done], last, began, NOW + 90000)
   assert.equal(rec.seconds, 90)
   assert.equal(rec.cost, 0.75)
   assert.equal(rec.summary, 'All tests pass.')
-  assert.deepEqual(rec.pr, { num: 9, title: '#9 Fix' })
+  // the finished-run panel gets the whole message and the files, not just the last line
+  assert.equal(rec.answer, 'Fixed it.\n\nAll tests pass.')
+  assert.deepEqual(rec.fileList, [['a.js', 4, 1]])
+  assert.deepEqual(rec.pr, { num: 9, title: '#9 Fix', url: 'https://x/9' })
   assert.deepEqual(finishedOf([done], last, began, NOW + 95000), [])
   // an agent already done when the cockpit started is not a finished run
   assert.deepEqual(finishedOf([agent({ id: 'z', state: 'done' })], new Map(), new Map(), NOW), [])
@@ -170,4 +173,22 @@ test('a fan-out lists its branches side by side, with a placeholder for one not 
   const [group] = groupsOf([rec], [one, agent({ id: 'x', name: 'try-2', repoRoot: 'D:\Projects\web' })])
   assert.deepEqual(group.members.map(m => [m.branch, m.id, m.state]), [['try-1', 'a1', 'working'], ['try-2', null, 'idle']])
   assert.equal(group.members[0].summary, 'Almost.')
+})
+
+test('stats add up the last 14 days of runs, per day and per repo', () => {
+  const day = n => new Date(NOW - n * 86400000).toISOString()
+  const runs = [
+    { at: day(20), repo: 'old', cost: 9, seconds: 60 },
+    { at: day(1), repo: 'api', cost: 1.5, seconds: 100 },
+    { at: day(1), repo: 'web', cost: 0.5, seconds: 300 },
+    { at: day(0), repo: 'api', cost: 1, seconds: 200 },
+  ]
+  const s = statsOf(runs, NOW)
+  assert.equal(s.days.length, 14)
+  assert.deepEqual(s.days.at(-1), { day: s.days.at(-1).day, cost: 1, runs: 1 })
+  assert.deepEqual({ cost: s.days.at(-2).cost, runs: s.days.at(-2).runs }, { cost: 2, runs: 2 })
+  assert.deepEqual(s.repos, [{ repo: 'api', cost: 2.5, runs: 2 }, { repo: 'web', cost: 0.5, runs: 1 }])
+  assert.deepEqual({ runs: s.runs, cost: s.cost, avgSeconds: s.avgSeconds }, { runs: 3, cost: 3, avgSeconds: 200 })
+  assert.deepEqual(s.top.map(r => r.cost), [1.5, 1, 0.5], 'the costliest runs in the window, costliest first')
+  assert.deepEqual(statsOf([], NOW).repos, [])
 })

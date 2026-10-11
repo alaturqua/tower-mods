@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -67,6 +67,13 @@ test('an answer is appended for beacon, and a bad session id writes nothing', as
   const lines = readFileSync(join(home, 'inbox', 'sess-9.jsonl'), 'utf8').trim().split('\n')
   assert.deepEqual({ ...JSON.parse(lines.at(-1)), at: undefined }, { v: 1, kind: 'answer', pendingId: 'p-1', allow: true, at: undefined })
   assert.equal((await post({ id: '../../evil', pendingId: 'p-1', allow: true })).status, 400)
+})
+
+test('Clear log deletes the done history', async () => {
+  writeFileSync(join(home, 'history.jsonl'), JSON.stringify({ at: '2026-10-11T10:00:00Z', repo: 'api', name: 'x' }) + '\n')
+  const res = await fetch(`${base}/api/clear-done`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', origin: base }, body: '{}' })
+  assert.equal(res.status, 200)
+  assert.equal(existsSync(join(home, 'history.jsonl')), false)
 })
 
 test('--restart replaces the running cockpit, --stop stops it', async () => {

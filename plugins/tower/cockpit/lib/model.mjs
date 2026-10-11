@@ -150,6 +150,8 @@ export function toAgent({ row, status, git, pr, lane, inbox = 0, now }) {
     lastPrompt: status?.lastPrompt ?? null,
     lastAnswer: status?.lastAnswer ?? null,
     feed: feedOf(status?.activity),
+    // As the beacon reports them; an older beacon reports none.
+    subagents: Array.isArray(status?.subagents) ? status.subagents : [],
     lane: lane ?? [],
   }
 }
@@ -248,10 +250,13 @@ export function finishedOf(agents, last, began, now) {
     if (a.state === 'done' && (before === 'working' || before === 'needs')) {
       const start = began.get(a.id) ?? { at: now, cost: a.cost }
       records.push({
-        id: a.id, at: new Date(now).toISOString(), repo: a.repo, name: a.name, branch: a.branch,
+        id: a.id, at: new Date(now).toISOString(), repo: a.repo, name: a.name, branch: a.branch, path: a.path, model: a.model,
         seconds: Math.round((now - start.at) / 1000), cost: Math.max(0, +(a.cost - start.cost).toFixed(2)),
-        add: a.add, del: a.del, files: a.files, pr: a.pr ? { num: a.pr.num, title: a.pr.title } : null,
+        add: a.add, del: a.del, files: a.files, fileList: a.fileList ?? [],
+        pr: a.pr ? { num: a.pr.num, title: a.pr.title, url: a.pr.url ?? null } : null,
         summary: lastLine(a.lastAnswer),
+        // The whole last message, for the finished-run panel; capped so history.jsonl stays small.
+        answer: a.lastAnswer ? String(a.lastAnswer).slice(0, 4000) : null,
       })
     }
     if (a.state !== 'working' && a.state !== 'needs') began.delete(a.id)
@@ -301,6 +306,42 @@ export function readyOf(worktrees) {
 }
 
 // ---- fan-outs: the agents of one group, side by side --------------------------------------
+
+// The dashboard's trends from the done log: the last 14 days (local, oldest first), per day
+// and per repo, so the page gets a few numbers, not 500 records.
+const STAT_DAYS = 14
+const REPOS_SHOWN = 6
+const TOP_RUNS = 5
+export function statsOf(records, now) {
+  const key = t => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+  const days = Array.from({ length: STAT_DAYS }, (_, i) => ({ day: key(now - (STAT_DAYS - 1 - i) * 86400000), cost: 0, runs: 0 }))
+  const byDay = new Map(days.map(d => [d.day, d]))
+  const byRepo = new Map()
+  let seconds = 0, count = 0
+  for (const r of records) {
+    const d = byDay.get(key(Date.parse(r.at)))
+    if (!d) continue
+    d.cost += r.cost || 0
+    d.runs += 1
+    const repo = byRepo.get(r.repo) ?? { repo: r.repo, cost: 0, runs: 0 }
+    repo.cost += r.cost || 0
+    repo.runs += 1
+    byRepo.set(r.repo, repo)
+    seconds += r.seconds || 0
+    count += 1
+  }
+  const round = n => +n.toFixed(2)
+  for (const d of days) d.cost = round(d.cost)
+  const sorted = [...byRepo.values()].sort((a, b) => b.cost - a.cost)
+  const rest = sorted.slice(REPOS_SHOWN - 1)
+  // Past the top few, the rest fold into one "Other" bar instead of vanishing.
+  const repos = (sorted.length > REPOS_SHOWN ? [...sorted.slice(0, REPOS_SHOWN - 1), { repo: 'Other', cost: rest.reduce((n, r) => n + r.cost, 0), runs: rest.reduce((n, r) => n + r.runs, 0) }] : sorted)
+    .map(r => ({ ...r, cost: round(r.cost) }))
+  // The costliest runs in the window: where to look when the spend looks wrong.
+  const top = records.filter(r => byDay.has(key(Date.parse(r.at)))).sort((a, b) => (b.cost || 0) - (a.cost || 0)).slice(0, TOP_RUNS)
+    .map(r => ({ id: r.id ?? null, at: r.at, repo: r.repo, name: r.name, cost: r.cost || 0, seconds: r.seconds || 0 }))
+  return { days, repos, top, runs: count, cost: round(days.reduce((n, d) => n + d.cost, 0)), avgSeconds: count ? Math.round(seconds / count) : 0 }
+}
 
 export function groupsOf(records, agents) {
   return records.map(g => ({

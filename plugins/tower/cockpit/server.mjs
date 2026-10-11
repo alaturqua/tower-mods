@@ -12,8 +12,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import * as actions from './lib/actions.mjs'
-import { TOWER, agents, commandsOf, fanoutsOf, gitOf, historyOf, inboxCount, knownRepos, prsOf, recordDone, remoteAnswersSetting, run, statusOf, worktreesOf } from './lib/collect.mjs'
-import { finishedOf, groupsOf, laneOf, markConflicts, reposOf, toAgent, totalsOf, usageOf } from './lib/model.mjs'
+import { TOWER, agents, commandsOf, fanoutsOf, gitOf, clearHistory, historyOf, inboxCount, knownRepos, prsOf, recordDone, remoteAnswersSetting, run, statusOf, worktreesOf } from './lib/collect.mjs'
+import { finishedOf, groupsOf, statsOf, laneOf, markConflicts, reposOf, toAgent, totalsOf, usageOf } from './lib/model.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const argv = process.argv.slice(2)
@@ -47,6 +47,8 @@ const ACTIONS = {
   merge: actions.merge, 'remove-worktree': actions.removeWorktree, 'rename-branch': actions.renameBranch, 'open-editor': actions.openEditor,
   'add-repo': actions.addRepo, 'rename-repo': actions.renameRepo, 'hide-repo': actions.hideRepo,
   'allow-always': actions.allowAlways, 'remote-answers': actions.remoteAnswers, 'merge-queue': actions.mergeQueue, 'keep-fanout': actions.keepFanout,
+  // Here, not in lib/actions.mjs: the done log it empties lives in this file.
+  'clear-done': async () => { await clearHistory(); runs = []; return { ok: true, message: 'Cleared the Done log.' } },
 }
 
 // ---- the fleet, refreshed every two seconds --------------------------------------------
@@ -56,7 +58,9 @@ const history = new Map()
 const lastState = new Map()
 const began = new Map()
 const DONE_SHOWN = 50
-let doneLog = await historyOf(DONE_SHOWN)
+// The dashboard's trends need more runs than the Done view shows; the file keeps at most 500.
+const RUNS_KEPT = 500
+let runs = await historyOf(RUNS_KEPT)
 let snapshot = { agents: [], repos: [], totals: totalsOf([]), usage: usageOf([], 0), done: [], groups: [], settings: {}, error: null, at: 0 }
 let snapshotJson = JSON.stringify(snapshot)
 const listeners = new Set()
@@ -87,7 +91,7 @@ async function refresh() {
     const finished = finishedOf(built, lastState, began, now)
     if (finished.length) {
       await recordDone(finished).catch(() => {})
-      doneLog = [...doneLog, ...finished].slice(-DONE_SHOWN)
+      runs = [...runs, ...finished].slice(-RUNS_KEPT)
     }
     // Only for working out conflicts; the page never needs the full file lists.
     for (const a of built) delete a.touched
@@ -101,7 +105,7 @@ async function refresh() {
     }))
     snapshot = {
       agents: built, repos: reposOf(built, withTrees), totals: totalsOf(built), usage: usageOf(built, now),
-      done: doneLog.slice().reverse(), groups: groupsOf(await fanoutsOf(), built),
+      done: runs.slice(-DONE_SHOWN).reverse(), stats: statsOf(runs, now), groups: groupsOf(await fanoutsOf(), built),
       settings: { remoteAnswers: await remoteAnswersSetting() }, error: null, at: now,
     }
   } catch (err) {

@@ -95,6 +95,8 @@
       }
       const resolved = whole ? lookup(whole[1], scopes) : interpolate(value, scopes)
       if (name === 'checked') { el.checked = Boolean(resolved); continue }
+      // Present at all means disabled, so a false value leaves the attribute off.
+      if (name === 'disabled') { if (resolved && resolved !== 'false') el.setAttribute('disabled', ''); continue }
       if (name === 'value') { late.push(() => { el.value = text(resolved) }); continue }
       el.setAttribute(name, text(resolved))
     }
