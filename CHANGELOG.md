@@ -2,6 +2,18 @@
 
 Everything notable in Tower (the plugin and its site), newest first. Generated from the commit history by [git-cliff](https://git-cliff.org).
 
+## [0.6.0](https://github.com/alaturqua/tower-mods/releases/tag/v0.6.0) - 2026-10-11
+
+### Added
+
+- Add AGENTS.md and CLAUDE.md with project instructions, and ignore local graphify files ([a473b2d](https://github.com/alaturqua/tower-mods/commit/a473b2df34e7217e7b99fe5afcd0d46540862fd7))
+- Add a dashboard, row actions, a subagents tab, model and effort switches and finished-run details to the cockpit ([6f1307a](https://github.com/alaturqua/tower-mods/commit/6f1307a0dbb32d3c0ea90bdfbebcc95780b81105))
+
+### Changed
+
+- Report each session's subagents to the cockpit: task, type, status, latest tool call and call count ([4a59bd0](https://github.com/alaturqua/tower-mods/commit/4a59bd0666c1e4020b7b40397bb7d151a44898ec))
+- Describe the dashboard, subagents, row actions and model switch in the README and on the site ([798b7de](https://github.com/alaturqua/tower-mods/commit/798b7deae17583886f3a8e4ff982fc285f3c930d))
+- Ignore Impeccable's local critique archive ([a4dae6a](https://github.com/alaturqua/tower-mods/commit/a4dae6a892387069c301bacaadbffed63ccc602b))
 ## [0.5.0](https://github.com/alaturqua/tower-mods/releases/tag/v0.5.0) - 2026-10-11
 
 ### Added
