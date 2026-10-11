@@ -197,9 +197,8 @@ export async function addRepo({ path }) {
 // Each answers the chosen path on stdout; a cancel exits non-zero with nothing printed.
 const PICK_TITLE = 'Choose a git repository for Tower'
 const PICKERS = {
-  win32: [['powershell.exe', ['-NoProfile', '-STA', '-Command',
-    // A topmost owner keeps the dialog in front of the browser.
-    `[Console]::OutputEncoding=[Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description='${PICK_TITLE}'; $f.UseDescriptionForTitle=$true; $o=New-Object System.Windows.Forms.Form -Property @{TopMost=$true}; if ($f.ShowDialog($o) -eq 'OK') { [Console]::Out.Write($f.SelectedPath) }`]]],
+  // The Explorer-style dialog with an address bar (lib/pick-folder.ps1), not .NET's tree view.
+  win32: [['powershell.exe', ['-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-File', join(dirname(fileURLToPath(import.meta.url)), 'pick-folder.ps1')]]],
   darwin: [['osascript', ['-e', `POSIX path of (choose folder with prompt "${PICK_TITLE}")`]]],
   linux: [['zenity', ['--file-selection', '--directory', `--title=${PICK_TITLE}`]], ['kdialog', ['--getexistingdirectory', '.', '--title', PICK_TITLE]]],
 }
