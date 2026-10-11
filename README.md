@@ -34,9 +34,12 @@ Needs Node.js 18 or newer for the cockpit, and the GitHub CLI (`gh`) for pull re
 
 | Area | What it does |
 | --- | --- |
-| **Needs you** | Permission requests and questions as cards, oldest first: the agent's reason, a diff for edits, a badge on risky commands (pushes, deletes, deploys). Allow, deny or answer with a click, or `A` / `D` / `1`–`4`. |
-| **Fleet** | Every session as a table, cards or a timeline (your choice is remembered): state, what it's doing, lines changed, PR and CI, context fill, cost. Stuck, looping and context-full agents are flagged. |
-| **Repositories and workstreams** | The left rail groups sessions by repo and git worktree. **+ New workstream** starts a background agent in a fresh worktree on its own branch (`claude --bg -w`). The ⋯ menus rename or remove repos and worktrees. |
+| **Usage** | The header shows your 5-hour and weekly rate limits (how full, when they reset) beside what all sessions have spent. |
+| **Needs you** | Permission requests and questions as cards, oldest first: the agent's reason, a diff for edits, a badge on risky commands (pushes, deletes, deploys). Allow, deny or answer with a click, or `A` / `D` / `1`–`4`. **Always allow** on a plain, low-risk command allows it and writes that exact command as a rule to the folder's `.claude/settings.local.json`, so it stops asking. |
+| **Fleet** | Every session as a table, cards or a timeline (your choice is remembered): state, what it's doing, lines changed, PR and CI, context fill, cost. Stuck, looping, context-full and over-budget agents are flagged, and so are two worktrees changing the same file. |
+| **Done** | A log of finished runs, newest first: what each one said last, what it changed, how long it took and what it cost, and its PR. Kept in `~/.claude/tower/history.jsonl`. |
+| **Repositories and workstreams** | The left rail groups sessions by repo and git worktree. **+ New workstream** starts a background agent in a fresh worktree on its own branch (`claude --bg -w`). Pick 2–4 agents to give the same task to several worktrees and compare them side by side; **Keep this one** stops the others, removes their worktrees (their branches stay) and asks the kept one for a PR. The ⋯ menus rename or remove repos and worktrees. |
+| **Merge queue** | When a repo has two or more green PRs, **Merge all in order** squash-merges them oldest first, checking each again just before its merge and stopping at the first that is no longer green. |
 | **The selected agent** | Its live activity, changed files, and pull request (squash-merge when it's green). Send it a prompt, or type `/` for its slash commands. Jump to its window, or stop it if it runs in the background. |
 
 Select several agents to send them all the same prompt, or stop them. Everything follows System, Light or Dark.
@@ -44,9 +47,10 @@ Select several agents to send them all the same prompt, or stop them. Everything
 ### How it works and what it trusts
 
 - **Local only.** The cockpit is a small Node server inside the plugin (`plugins/tower/cockpit`, no dependencies). It listens on `127.0.0.1` only. The link `/cockpit` opens carries a one-time token that the browser trades for a same-site cookie. The server refuses other host names and requests from other web pages.
+- **What it writes:** besides the inbox, only what you click: a rule in a folder's `.claude/settings.local.json` (**Always allow**), `remoteAnswers` in `~/.claude/settings.json` (the opt-in), and its own files under `~/.claude/tower/`. A settings file it cannot read is left alone.
 - **What it reads:** `claude agents --json` for the live sessions, each session's status file in `~/.claude/tower/sessions/`, `git` in each working folder, and `gh` for pull requests.
 - **How it steers:** prompts, slash commands and answers are appended to `~/.claude/tower/inbox/<session>.jsonl`. The plugin in that session picks them up within a second and runs them as if typed there. The cockpit shows "Queued" until it has. A session started before installing can't receive until it restarts, and the cockpit says so.
-- **Answering from the cockpit:** a permission dialog belongs to its terminal. So by default only agents the cockpit launched send their permission prompts and questions to the cockpit. The agent is told to wait, your Allow arrives as its next prompt, and that exact call runs once. For a session you started by hand, the cockpit shows what it waits on and **Jump** brings its window forward. Set `remoteAnswers` to `always` to answer every session from the cockpit.
+- **Answering from the cockpit:** a permission dialog belongs to its terminal. So by default only agents the cockpit launched send their permission prompts and questions to the cockpit. The agent is told to wait, your Allow arrives as its next prompt, and that exact call runs once. For a session you started by hand, the cockpit shows what it waits on and **Jump** brings its window forward, and offers once to set `remoteAnswers` to `always` in `~/.claude/settings.json` so you can answer every session from the cockpit.
 - **Launching agents:** Claude Code must have been trusted in a repository once (open Claude Code there and accept the prompt) before the cockpit can start agents in it.
 
 ## In the terminal
@@ -67,6 +71,8 @@ Change these in `/config` or under `pluginConfigs.tower.options` in `~/.claude/s
 | `notifyOnDone` | `true` | Notify when a turn ends after `minTurnSeconds` |
 | `minTurnSeconds` | `30` | Shorter turns end quietly |
 | `notifyOnIdle` | `false` | Also notify on Claude Code's "still waiting" reminders |
+| `budgetUsd` | `0` | Flag a session and notify once when its cost passes this; `0` is no budget |
+| `limitAlertPercent` | `90` | Notify once per window when the 5-hour or weekly rate limit is this full; `0` turns it off |
 | `remoteAnswers` | `launched` | Which sessions send permission prompts and questions to the cockpit and tower: `launched`, `always`, `never` |
 | `inboxSeconds` | `1` | How often a session checks for prompts and answers from the cockpit; `0` turns it off |
 | `pollSeconds` | `3` | How often `/tower` refreshes, once it has run in a session |

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { feedOf, healthOf, laneOf, modelName, pendingOf, reposOf, riskOf, stateOf, toAgent, totalsOf } from '../lib/model.mjs'
+import { conflictsOf, feedOf, finishedOf, groupsOf, healthOf, laneOf, markConflicts, modelName, pendingOf, reposOf, riskOf, stateOf, toAgent, totalsOf, usageOf } from '../lib/model.mjs'
 
 const NOW = Date.parse('2026-10-06T14:00:00Z')
 const row = (over = {}) => ({ sessionId: 's1', cwd: 'D:\\Projects\\api', kind: 'interactive', name: 'api-1a', status: 'idle', startedAt: NOW - 3600000, ...over })
@@ -101,4 +101,73 @@ test('totals and model names', () => {
   assert.equal(modelName('eu.anthropic.claude-sonnet-5-5'), 'Sonnet 5.5')
   assert.equal(modelName('claude-opus-5-5[1m]'), 'Opus 5.5 1M')
   assert.deepEqual(feedOf(undefined), [])
+})
+
+const agent = (over = {}) => ({ id: 'a', name: 'x', branch: 'b', repoRoot: 'D:\Projects\api', path: 'D:\Projects\api', state: 'idle', cost: 0, add: 0, del: 0, files: 0, touched: [], limits: [], reported: 0, lastAnswer: null, pr: null, ...over })
+
+test('Always allow offers one exact, risk-free Bash command and nothing broader', () => {
+  const rule = detail => pendingOf({ pending: { id: 'p', kind: 'permission', title: 'Bash', detail } }, 'needs').rule
+  assert.equal(rule('npm test'), 'Bash(npm test)')
+  assert.equal(rule('git push origin main'), null)
+  assert.equal(rule('rm -rf build'), null)
+  assert.equal(rule('ls *.js'), null)
+  assert.equal(rule('echo (x)'), null)
+  assert.equal(rule('a'.repeat(300)), null)
+  assert.equal(pendingOf({ pending: { id: 'p', kind: 'permission', title: 'Edit', detail: 'src/a.ts' } }, 'needs').rule, null)
+  assert.equal(pendingOf({ pending: { id: 'p', kind: 'question', title: 'Which?' } }, 'needs').rule, null)
+})
+
+test('usage takes each rate-limit window from the session that reported it last', () => {
+  const old = agent({ id: 'o', reported: 1000, limits: [{ kind: 'five_hour', percentUsed: 10, resetsAt: '2026-10-06T16:00:00Z' }] })
+  const fresh = agent({ id: 'f', reported: 2000, limits: [{ kind: 'seven_day', percentUsed: 41.6 }, { kind: 'five_hour', percentUsed: 62.4, resetsAt: '2026-10-06T16:00:00Z' }] })
+  const usage = usageOf([old, fresh, agent({ id: 'n' })], NOW)
+  assert.deepEqual(usage.limits.map(l => [l.label, l.percent]), [['5-hour', 62], ['Weekly', 42]])
+  assert.equal(usage.limits[0].resets, '2h')
+  assert.deepEqual(usageOf([agent()], NOW).limits, [])
+})
+
+test('a run that ends in done is recorded once, with what it cost', () => {
+  const last = new Map(), began = new Map()
+  assert.deepEqual(finishedOf([agent({ state: 'working', cost: 1 })], last, began, NOW), [])
+  const done = agent({ state: 'done', cost: 1.75, add: 5, del: 1, files: 2, lastAnswer: 'Fixed it.\n\nAll tests pass.', pr: { num: 9, title: '#9 Fix', checks: [] } })
+  const [rec] = finishedOf([done], last, began, NOW + 90000)
+  assert.equal(rec.seconds, 90)
+  assert.equal(rec.cost, 0.75)
+  assert.equal(rec.summary, 'All tests pass.')
+  assert.deepEqual(rec.pr, { num: 9, title: '#9 Fix' })
+  assert.deepEqual(finishedOf([done], last, began, NOW + 95000), [])
+  // an agent already done when the cockpit started is not a finished run
+  assert.deepEqual(finishedOf([agent({ id: 'z', state: 'done' })], new Map(), new Map(), NOW), [])
+})
+
+test('two worktrees changing one file are flagged; the same worktree, other repos and disjoint files are not', () => {
+  const a = agent({ id: 'a', name: 'one', branch: 'one', path: 'D:\w\one', touched: ['src/a.ts', 'src/b.ts', 'c.md'] })
+  const b = agent({ id: 'b', name: 'two', branch: 'two', path: 'D:\w\two', touched: ['src/a.ts', 'src/b.ts'] })
+  const c = agent({ id: 'c', name: 'three', branch: 'three', path: 'D:\w\three', touched: ['other.ts'] })
+  const elsewhere = agent({ id: 'd', repoRoot: 'D:\Projects\web', path: 'D:\w\four', touched: ['src/a.ts'] })
+  const same = agent({ id: 'e', path: 'D:\w\one', touched: ['src/a.ts'] })
+  const found = conflictsOf([a, b, c, elsewhere])
+  assert.equal(found.get('a'), 'src/a.ts and 1 more also changed by two (⎇ two)')
+  assert.ok(found.has('b'))
+  assert.ok(!found.has('c') && !found.has('d'))
+  assert.equal(conflictsOf([a, same]).size, 0)
+  const marked = markConflicts([a, b, agent({ id: 'h', name: 'looper', path: 'D:\w\h', health: 'Looping: x', touched: ['src/a.ts'] })])
+  assert.match(marked[0].health, /^Conflict: /)
+  assert.equal(marked[2].health, 'Looping: x')
+  assert.ok(marked[2].conflict)
+})
+
+test('the merge queue lists green pull requests oldest first, per repository', () => {
+  const pr = (num, mergeable) => ({ num, title: `#${num}`, mergeable })
+  const repos = reposOf([], [{ root: 'D:\Projects\api', name: 'api', worktrees: [
+    { path: 'p1', branch: 'b9', pr: pr(9, true) }, { path: 'p2', branch: 'b3', pr: pr(3, true) }, { path: 'p3', branch: 'b5', pr: pr(5, false) }, { path: 'p4', branch: 'b6' }] }])
+  assert.deepEqual(repos[0].ready.map(r => r.num), [3, 9])
+})
+
+test('a fan-out lists its branches side by side, with a placeholder for one not running yet', () => {
+  const rec = { id: 'g1', name: 'try', task: 'Do it', repo: 'D:\Projects\api', branches: ['try-1', 'try-2'] }
+  const one = agent({ id: 'a1', name: 'try-1', state: 'working', add: 3, lastAnswer: 'Almost.' })
+  const [group] = groupsOf([rec], [one, agent({ id: 'x', name: 'try-2', repoRoot: 'D:\Projects\web' })])
+  assert.deepEqual(group.members.map(m => [m.branch, m.id, m.state]), [['try-1', 'a1', 'working'], ['try-2', null, 'idle']])
+  assert.equal(group.members[0].summary, 'Almost.')
 })

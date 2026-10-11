@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, SessionRateLimit } from 'claude-code'
 
 import type { BeaconPending } from '../types'
 import { currentRun } from './strip'
@@ -42,6 +42,13 @@ let minTurnMs = 30000
 let notifyOnIdle = false
 let notifications = true
 let remoteAnswers = 'launched'
+// A cost past this (USD) flags the session and notifies once; 0 is no budget.
+let budgetUsd = 0
+let budgetAlerted = false
+// A rate-limit window used past this percent notifies once per window; 0 is never.
+let limitAlertPercent = 90
+const limitsAlerted = new Set<string>()
+const WINDOWS: Record<string, string> = { five_hour: '5-hour', seven_day: 'weekly', spend_limit: 'spend' }
 // Whether this session sends its dialogs to the tower; settled at session.start.
 let isRemote = false
 let label = ''
@@ -96,6 +103,9 @@ async function report($: $, state?: State, message?: string | null) {
     const usage = await $.session.usage().catch(() => undefined)
     const waiting = await read($, pending)
     const run = currentRun()
+    const cost = usage?.cost?.usd ?? null
+    const limits = usage?.rateLimits ?? []
+    void watchUsage($, cost, limits).catch(err => $.ui.log(`beacon: usage alert failed: ${String(err)}`))
     await $.fs.write(await statusPath($), JSON.stringify({
       sessionId: await $.session.id(),
       label: await getLabel($),
@@ -105,7 +115,9 @@ async function report($: $, state?: State, message?: string | null) {
       mode: run.mode,
       effort: run.effort,
       contextPercent: usage?.context.percent ?? null,
-      costUsd: usage?.cost?.usd ?? null,
+      costUsd: cost,
+      budgetUsd: budgetUsd || null,
+      rateLimits: limits,
       state: lastState,
       message: lastMessage,
       pending: waiting ? { ...waiting, key: undefined } : null,
@@ -113,7 +125,8 @@ async function report($: $, state?: State, message?: string | null) {
       // The cockpit may send here only when this session reads its inbox.
       canReceive: inboxOn,
       inboxSeen,
-      health: failing.count >= LOOP_AFTER ? `Looping: ${failing.text} failed ${failing.count}× in a row` : null,
+      health: failing.count >= LOOP_AFTER ? `Looping: ${failing.text} failed ${failing.count}× in a row`
+        : budgetUsd > 0 && cost !== null && cost >= budgetUsd ? `Over budget: $${cost.toFixed(2)} of $${budgetUsd.toFixed(2)}` : null,
       lastPrompt,
       lastAnswer,
       activity,
@@ -121,6 +134,30 @@ async function report($: $, state?: State, message?: string | null) {
     }, null, 2))
   } catch {
     // A status file is best effort; never let it break the session.
+  }
+}
+
+// Budget and rate limits, from the same figures the status file gets. The budget is this
+// session's; a rate-limit window is the account's, so a mark file in the tower folder
+// keeps every other session from announcing the same window again.
+async function watchUsage($: $, cost: number | null, limits: SessionRateLimit[]) {
+  if (budgetUsd > 0 && cost !== null && cost >= budgetUsd && !budgetAlerted) {
+    budgetAlerted = true
+    if (notifications) await desktopNotify($, `Budget · ${await getLabel($)}`, `$${cost.toFixed(2)} spent, past its $${budgetUsd.toFixed(2)} budget`)
+  }
+  if (!notifications || limitAlertPercent <= 0) return
+  for (const l of limits) {
+    const key = `${l.kind}@${l.resetsAt ?? ''}`
+    if (l.percentUsed < limitAlertPercent || limitsAlerted.has(key)) continue
+    limitsAlerted.add(key)
+    const mark = `${await towerDir($)}/alerts/${l.kind.replace(/[^\w-]/g, '')}.json`
+    const seen = await $.fs.read(mark).then(text => JSON.parse(String(text))?.key).catch(() => null)
+    if (seen === key) continue
+    await $.fs.write(mark, JSON.stringify({ key }))
+    const name = WINDOWS[l.kind] ?? l.kind
+    const at = new Date(l.resetsAt ?? '')
+    const resets = Number.isNaN(at.getTime()) ? '' : `; resets at ${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
+    await desktopNotify($, `Usage · ${name} limit`, `${Math.round(l.percentUsed)}% of the ${name} limit used${resets}`)
   }
 }
 
@@ -305,6 +342,8 @@ export const registerBeacon: Register = (on, options) => {
   notifyOnIdle = options.notifyOnIdle === true
   notifications = options.notifications !== false
   remoteAnswers = String(options.remoteAnswers ?? 'launched')
+  budgetUsd = Math.max(0, Number(options.budgetUsd ?? 0) || 0)
+  limitAlertPercent = Math.max(0, Number(options.limitAlertPercent ?? 90) || 0)
   const inboxMs = Number(options.inboxSeconds ?? 1) * 1000
 
   // The plugin's one unmatched session.start; the pane's and the status line's match every cwd.

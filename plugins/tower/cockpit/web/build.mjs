@@ -151,6 +151,109 @@ swap('  </div>\n</div>\n</x-dc>', `  </div>
 </div>
 </x-dc>`)
 
+// The account's rate-limit windows beside the spend, from whichever session reported last.
+swap('{{fleet.cost}} across sessions</span>', `{{fleet.cost}} across sessions</span>
+      <sc-for list="{{usage.limits}}" as="u" hint-placeholder-count="2">
+        <span title="{{u.title}}" style="{{u.style}}">{{u.text}}</span>
+      </sc-for>`)
+
+// Launch: one agent, or the same task in up to four worktrees to compare.
+swap(`          <div style="display: flex; flex-direction: column; gap: 6px">
+            <label for="ws-task"`, `          <sc-if value="{{form.worktree}}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; flex-direction: column; gap: 6px; max-width: 420px">
+              <label for="ws-copies" style="font-size: 12px; color: var(--muted)">Agents</label>
+              <select id="ws-copies" onChange="{{form.pickCopies}}" style="${select}">
+                <sc-for list="{{form.copies}}" as="o" hint-placeholder-count="4"><option value="{{o.value}}" selected="{{o.selected}}">{{o.label}}</option></sc-for>
+              </select>
+            </div>
+          </sc-if>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <label for="ws-task"`)
+
+// Sessions started by hand keep their dialogs in the terminal; offer once to change that.
+swap('      <sc-if value="{{hasNeeds}}"', `      <sc-if value="{{optIn.show}}" hint-placeholder-val="{{ false }}">
+        <section aria-label="Answer from here" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 16px; border-radius: 12px; background: var(--info-bg); border: 1px solid var(--info-edge)">
+          <span style="flex: 1 1 360px; font-size: 13px; color: var(--text2); line-height: 1.5"><b style="color: var(--text)">Answer sessions you started yourself from here too?</b> Today their prompts stay in their terminal, so you can only jump to them. New sessions will send their permission prompts and questions to the cockpit; running ones after a restart.</span>
+          <span style="display: flex; gap: 8px">
+            <button type="button" onClick="{{optIn.turnOn}}" style="min-height: 40px; padding: 0 14px; border-radius: 8px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">Turn on</button>
+            <button type="button" onClick="{{optIn.later}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: none; background: transparent; color: var(--muted)">Not now</button>
+          </span>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{hasNeeds}}"`)
+
+// Green pull requests merged in order, and fan-outs compared side by side.
+swap('      <sc-if value="{{empty}}" hint-placeholder-val="{{ false }}">', `      <sc-if value="{{queue.show}}" hint-placeholder-val="{{ false }}">
+        <sc-for list="{{queue.items}}" as="q" hint-placeholder-count="1">
+          <section aria-label="Merge queue" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 16px; border-radius: 12px; background: var(--ok-tint); border: 1px solid var(--line)">
+            <span style="font-size: 13px; color: var(--text)">{{q.text}}</span>
+            <button type="button" onClick="{{q.run}}" style="min-height: 40px; padding: 0 14px; border-radius: 8px; border: none; background: var(--ok); color: var(--on-ok); font-weight: 600">Merge all in order</button>
+          </section>
+        </sc-for>
+      </sc-if>
+
+      <sc-if value="{{compare.show}}" hint-placeholder-val="{{ false }}">
+        <sc-for list="{{compare.groups}}" as="g" hint-placeholder-count="1">
+          <section aria-label="Compare {{g.name}}" style="display: flex; flex-direction: column; gap: 10px">
+            <div style="display: flex; flex-direction: column; gap: 2px">
+              <h2 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--work)">Compare · {{g.name}} · {{g.count}} agents</h2>
+              <span class="tw-clamp2" style="font-size: 13px; color: var(--muted)">{{g.task}}</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px">
+              <sc-for list="{{g.members}}" as="m" hint-placeholder-count="3">
+                <div style="{{m.style}}">
+                  <div style="display: flex; align-items: center; gap: 8px; justify-content: space-between">
+                    <span style="font-weight: 600; overflow-wrap: anywhere">⎇ {{m.branch}}</span>
+                    <span style="{{m.pill}}">{{m.stateLabel}}</span>
+                  </div>
+                  <span class="tw-clamp2" style="font-size: 13px; color: var(--text2); min-height: 36px">{{m.doing}}</span>
+                  <sc-if value="{{m.hasHealth}}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size: 12px; font-weight: 600; color: var(--bad)">⚠ {{m.health}}</span>
+                  </sc-if>
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted)">{{m.changes}} · {{m.cost}} · {{m.pr}}</span>
+                  <span style="display: flex; flex-wrap: wrap; gap: 8px">
+                    <button type="button" onClick="{{m.keep}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: none; background: var(--work); color: var(--on-work); font-weight: 600">Keep this one</button>
+                    <button type="button" onClick="{{m.open}}" style="min-height: 40px; padding: 0 10px; border-radius: 8px; border: none; background: transparent; color: var(--muted)">Open →</button>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </sc-for>
+      </sc-if>
+
+      <sc-if value="{{empty}}" hint-placeholder-val="{{ false }}">`)
+
+// A fourth view: what finished, newest first.
+swap('<button type="button" aria-pressed="{{views.timelinePressed}}" onClick="{{views.showTimeline}}" style="{{views.timelineStyle}}">Timeline</button>',
+  `<button type="button" aria-pressed="{{views.timelinePressed}}" onClick="{{views.showTimeline}}" style="{{views.timelineStyle}}">Timeline</button>
+            <button type="button" aria-pressed="{{views.donePressed}}" onClick="{{views.showDone}}" style="{{views.doneStyle}}">Done</button>`)
+swap('        </sc-if>\n      </section>\n    </main>', `        </sc-if>
+
+        <sc-if value="{{views.isDone}}" hint-placeholder-val="{{ false }}">
+          <div style="border: 1px solid var(--line); border-radius: 12px; background: var(--panel); display: flex; flex-direction: column">
+            <sc-if value="{{doneLog.empty}}" hint-placeholder-val="{{ false }}">
+              <p style="margin: 0; padding: 18px 16px; color: var(--muted); font-size: 13px">Nothing has finished since the cockpit started recording. When an agent ends a run, it shows here with what it changed and what it cost.</p>
+            </sc-if>
+            <ol style="list-style: none; margin: 0; padding: 0">
+              <sc-for list="{{doneLog.items}}" as="r" hint-placeholder-count="5">
+                <li style="display: grid; grid-template-columns: 72px 1fr auto; gap: 12px; align-items: baseline; padding: 12px 16px; border-bottom: 1px solid var(--line-soft)">
+                  <span style="display: flex; flex-direction: column; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted)"><span style="color: var(--text2)">{{r.when}}</span><span>{{r.day}}</span></span>
+                  <span style="min-width: 0; display: flex; flex-direction: column; gap: 3px">
+                    <span style="font-weight: 600; overflow-wrap: anywhere">{{r.repo}} <span style="color: var(--muted); font-weight: 400">· {{r.name}} · ⎇ {{r.branch}}</span></span>
+                    <span class="tw-clamp2" style="font-size: 13px; color: var(--text2)">{{r.summary}}</span>
+                    <sc-if value="{{r.hasPr}}" hint-placeholder-val="{{ false }}"><span style="font-size: 12px; color: var(--ok)">{{r.pr}}</span></sc-if>
+                  </span>
+                  <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); white-space: nowrap"><span>{{r.changes}}</span><span>{{r.took}} · {{r.cost}}</span></span>
+                </li>
+              </sc-for>
+            </ol>
+          </div>
+        </sc-if>
+      </section>
+    </main>`)
+
 for (const left of ['{{bulk.pause}}', '{{bulk.resume}}', '{{pauseSel}}', '{{sel.cap}}', 'Search <kbd>']) {
   if (page.includes(left)) throw new Error('left over from the mockup: ' + left)
 }

@@ -50,6 +50,18 @@
       "description": "How often this session checks for prompts and answers sent from the cockpit. 0 turns it off.",
       "default": 1
     },
+    "budgetUsd": {
+      "type": "number",
+      "title": "Budget per session (USD)",
+      "description": "Flag a session and notify once when its cost passes this. 0 turns it off.",
+      "default": 0
+    },
+    "limitAlertPercent": {
+      "type": "number",
+      "title": "Rate-limit alert (%)",
+      "description": "Notify once when the 5-hour or weekly limit is this full. 0 turns it off.",
+      "default": 90
+    },
     "pollSeconds": {
       "type": "number",
       "title": "Tower refresh (seconds)",

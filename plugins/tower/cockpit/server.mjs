@@ -12,8 +12,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import * as actions from './lib/actions.mjs'
-import { TOWER, agents, commandsOf, gitOf, inboxCount, knownRepos, prsOf, run, statusOf, worktreesOf } from './lib/collect.mjs'
-import { laneOf, reposOf, toAgent, totalsOf } from './lib/model.mjs'
+import { TOWER, agents, commandsOf, fanoutsOf, gitOf, historyOf, inboxCount, knownRepos, prsOf, recordDone, remoteAnswersSetting, run, statusOf, worktreesOf } from './lib/collect.mjs'
+import { finishedOf, groupsOf, laneOf, markConflicts, reposOf, toAgent, totalsOf, usageOf } from './lib/model.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const argv = process.argv.slice(2)
@@ -46,12 +46,18 @@ const ACTIONS = {
   send: actions.send, answer: actions.answer, launch: actions.launch, stop: actions.stop, jump: actions.jump,
   merge: actions.merge, 'remove-worktree': actions.removeWorktree, 'rename-branch': actions.renameBranch, 'open-editor': actions.openEditor,
   'add-repo': actions.addRepo, 'rename-repo': actions.renameRepo, 'hide-repo': actions.hideRepo,
+  'allow-always': actions.allowAlways, 'remote-answers': actions.remoteAnswers, 'merge-queue': actions.mergeQueue, 'keep-fanout': actions.keepFanout,
 }
 
 // ---- the fleet, refreshed every two seconds --------------------------------------------
 
 const history = new Map()
-let snapshot = { agents: [], repos: [], totals: totalsOf([]), error: null, at: 0 }
+// The done log: each agent's last state and when its current run began, to see a run end.
+const lastState = new Map()
+const began = new Map()
+const DONE_SHOWN = 50
+let doneLog = await historyOf(DONE_SHOWN)
+let snapshot = { agents: [], repos: [], totals: totalsOf([]), usage: usageOf([], 0), done: [], groups: [], settings: {}, error: null, at: 0 }
 let snapshotJson = JSON.stringify(snapshot)
 const listeners = new Set()
 
@@ -77,6 +83,14 @@ async function refresh() {
       agent.lane = laneOf(history.get(agent.id), now)
       return agent
     })
+    markConflicts(built)
+    const finished = finishedOf(built, lastState, began, now)
+    if (finished.length) {
+      await recordDone(finished).catch(() => {})
+      doneLog = [...doneLog, ...finished].slice(-DONE_SHOWN)
+    }
+    // Only for working out conflicts; the page never needs the full file lists.
+    for (const a of built) delete a.touched
     const known = await knownRepos()
     const roots = new Set([...known.map(r => r.root), ...built.map(a => a.repoRoot)])
     const withTrees = await Promise.all([...roots].map(async root => {
@@ -85,7 +99,11 @@ async function refresh() {
       const mine = known.find(k => k.root.toLowerCase() === String(root).toLowerCase())
       return { root, name: mine?.name, hidden: mine?.hidden, worktrees }
     }))
-    snapshot = { agents: built, repos: reposOf(built, withTrees), totals: totalsOf(built), error: null, at: now }
+    snapshot = {
+      agents: built, repos: reposOf(built, withTrees), totals: totalsOf(built), usage: usageOf(built, now),
+      done: doneLog.slice().reverse(), groups: groupsOf(await fanoutsOf(), built),
+      settings: { remoteAnswers: await remoteAnswersSetting() }, error: null, at: now,
+    }
   } catch (err) {
     snapshot = { ...snapshot, error: String(err.message ?? err), at: now }
   }

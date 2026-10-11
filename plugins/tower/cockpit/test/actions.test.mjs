@@ -66,3 +66,82 @@ test('a repo is renamed and removed from the cockpit only in repos.json, and add
   assert.equal(saved.length, 1)
   assert.equal(saved[0].hidden, undefined)
 })
+
+test('Always allow writes the card\'s exact rule once, from the fleet, and allows', async () => {
+  const pending = { id: 'p-1', kind: 'permission', rule: 'Bash(npm test)' }
+  const fleet = { agents: [{ id: 's-allow', path: repo, pending }] }
+  const file = join(repo, '.claude', 'settings.local.json')
+  writeFileSync(join(repo, '.gitignore'), '.claude/\n')
+  const res = await actions.allowAlways({ id: 's-allow', pendingId: 'p-1', rule: 'Bash(*)' }, fleet)
+  assert.equal(res.ok, true, res.message)
+  await actions.allowAlways({ id: 's-allow', pendingId: 'p-1' }, fleet)
+  assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')).permissions.allow, ['Bash(npm test)'])
+  const inbox = readFileSync(join(process.env.TOWER_HOME, 'inbox', 's-allow.jsonl'), 'utf8').trim().split('\n').map(l => JSON.parse(l))
+  assert.equal(inbox[0].allow, true)
+  assert.equal((await actions.allowAlways({ id: 's-allow', pendingId: 'p-old' }, fleet)).ok, false)
+  assert.equal((await actions.allowAlways({ id: 's-allow', pendingId: 'p-1' }, { agents: [{ id: 's-allow', path: repo, pending: { ...pending, rule: null } }] })).ok, false)
+})
+
+test('Always allow leaves an unreadable settings file alone', async () => {
+  const bad = mkdtempSync(join(home, 'bad-'))
+  execFileSync('git', ['init', '-q', bad])
+  const file = join(bad, '.claude', 'settings.local.json')
+  execFileSync('node', ['-e', `require('fs').mkdirSync(${JSON.stringify(join(bad, '.claude'))});require('fs').writeFileSync(${JSON.stringify(file)}, '{ nope')`])
+  const res = await actions.allowAlways({ id: 's-bad', pendingId: 'p' }, { agents: [{ id: 's-bad', path: bad, pending: { id: 'p', rule: 'Bash(ls)' } }] })
+  assert.equal(res.ok, false)
+  assert.equal(readFileSync(file, 'utf8'), '{ nope')
+})
+
+test('the remote-answers choice is written under pluginConfigs, keeping the rest of settings', async () => {
+  const file = join(home, 'settings.json')
+  process.env.TOWER_SETTINGS = file
+  writeFileSync(file, JSON.stringify({ theme: 'dark', pluginConfigs: { tower: { options: { pollSeconds: 5 } }, other: { x: 1 } } }))
+  assert.equal((await actions.remoteAnswers({ value: 'always' })).ok, true)
+  const saved = JSON.parse(readFileSync(file, 'utf8'))
+  assert.equal(saved.theme, 'dark')
+  assert.deepEqual(saved.pluginConfigs.tower.options, { pollSeconds: 5, remoteAnswers: 'always' })
+  assert.deepEqual(saved.pluginConfigs.other, { x: 1 })
+  assert.equal((await actions.remoteAnswers({ value: 'everything' })).ok, false)
+})
+
+test('the merge queue merges green PRs oldest first and stops at the first that fails', async () => {
+  const merged = []
+  let prs = { a: { num: 7, mergeable: true }, b: { num: 3, mergeable: true }, c: { num: 5, mergeable: false } }
+  const list = async () => prs
+  const merge = async num => { merged.push(num); prs = Object.fromEntries(Object.entries(prs).filter(([, p]) => p.num !== num)); return { ok: true, stderr: '' } }
+  const res = await actions.mergeQueue({ root: repo }, {}, { list, merge })
+  assert.deepEqual(merged, [3, 7])
+  assert.match(res.message, /#3, #7 in order/)
+
+  prs = { a: { num: 1, mergeable: true }, b: { num: 2, mergeable: true } }
+  const failing = await actions.mergeQueue({ root: repo }, {}, { list, merge: async num => num === 2 ? { ok: false, stderr: 'conflict' } : merge(num) })
+  assert.equal(failing.ok, true)
+  assert.match(failing.message, /Merged #1\. #2: conflict\. Stopped there\./)
+
+  // a PR made stale by the merge before it waits
+  prs = { a: { num: 1, mergeable: true }, b: { num: 2, mergeable: true } }
+  const stale = await actions.mergeQueue({ root: repo }, {}, { list, merge: async num => { await merge(num); prs = { b: { num: 2, mergeable: false } }; return { ok: true } } })
+  assert.match(stale.message, /Merged #1 in order\. 1 more/)
+  assert.equal((await actions.mergeQueue({ root: repo }, {}, { list: async () => ({}) })).ok, false)
+})
+
+test('keeping one agent of a fan-out removes the other worktrees and the record, and keeps branches', async () => {
+  const other = join(home, 'try-2')
+  git('worktree', 'add', '-q', '-b', 'try-2', other)
+  const dir = join(process.env.TOWER_HOME, 'fanouts')
+  execFileSync('node', ['-e', `require('fs').mkdirSync(${JSON.stringify(dir)}, { recursive: true })`])
+  writeFileSync(join(dir, 'g1.json'), JSON.stringify({ id: 'g1', name: 'try', task: 't', repo, branches: ['try-1', 'try-2'] }))
+  assert.equal((await actions.keepFanout({ group: 'g1', branch: 'nope' })).ok, false)
+  const res = await actions.keepFanout({ group: 'g1', branch: 'try-1' }, { agents: [] })
+  assert.equal(res.ok, true, res.message)
+  assert.match(res.message, /Removed 1 other worktree/)
+  assert.equal(existsSync(other), false)
+  assert.equal(existsSync(join(dir, 'g1.json')), false)
+  assert.match(git('branch', '--list', 'try-2'), /try-2/)
+  assert.equal((await actions.keepFanout({ group: '../x', branch: 'a' })).ok, false)
+})
+
+test('a fan-out needs a task, and a single launch still needs a name', async () => {
+  assert.equal((await actions.launch({ repo, name: 'x', copies: 3, task: ' ' })).message, 'Give the agents a task to compare them on.')
+  assert.equal((await actions.launch({ repo, name: ' ', copies: 3 })).message, 'Name the workstream.')
+})

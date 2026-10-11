@@ -52,7 +52,8 @@ class Component extends DCLogic {
     var systemLight = false;
     try { systemLight = window.matchMedia('(prefers-color-scheme: light)').matches; } catch (err) {}
     this.state = {
-      data: { agents: [], repos: [], totals: { total: 0, needs: 0, working: 0, done: 0, alerts: 0, cost: 0 }, error: null },
+      data: { agents: [], repos: [], totals: { total: 0, needs: 0, working: 0, done: 0, alerts: 0, cost: 0 }, usage: { limits: [] }, done: [], groups: [], settings: {}, error: null },
+      remoteDismissed: Boolean(saved.remoteDismissed), formCopies: 1,
       conn: 'connecting', repo: 'all', ws: null, selected: null, draft: '', checked: {}, bulkDraft: '', tab: 'activity',
       view: saved.view || 'fleet', theme: saved.theme || 'system', systemLight: systemLight,
       folded: saved.folded || {}, railCollapsed: Boolean(saved.railCollapsed), detailCollapsed: Boolean(saved.detailCollapsed),
@@ -77,7 +78,7 @@ class Component extends DCLogic {
   remember(patch) {
     this.setState(patch, function () {
       var st = this.state;
-      try { localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: st.theme, view: st.view, folded: st.folded, railCollapsed: st.railCollapsed, detailCollapsed: st.detailCollapsed, railWidth: st.railWidth, detailWidth: st.detailWidth })); } catch (err) {}
+      try { localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: st.theme, view: st.view, folded: st.folded, railCollapsed: st.railCollapsed, detailCollapsed: st.detailCollapsed, railWidth: st.railWidth, detailWidth: st.detailWidth, remoteDismissed: st.remoteDismissed })); } catch (err) {}
     });
   }
 
@@ -268,17 +269,20 @@ class Component extends DCLogic {
   openForm(root, path, worktree) {
     var repo = (this.state.data.repos || []).filter(function (r) { return key(r.root) === key(root); })[0];
     var main = repo && repo.worktrees.filter(function (w) { return key(w.path) === key(repo.root); })[0];
-    this.setState({ formOpen: true, formRepo: root, formPath: path, formWorktree: worktree, formName: '', formTask: '', formBase: 'current' });
+    this.setState({ formOpen: true, formRepo: root, formPath: path, formWorktree: worktree, formName: '', formTask: '', formBase: 'current', formCopies: 1 });
   }
 
   launch() {
     var st = this.state, self = this;
+    var copies = st.formWorktree ? st.formCopies : 1;
     if (st.formWorktree && !st.formName.trim()) { this.toast('Name the workstream first.', true); return; }
-    this.post('launch', { repo: st.formWorktree ? st.formRepo : (st.formPath || st.formRepo), name: st.formName, base: st.formBase, task: st.formTask, model: st.formModel, mode: st.formMode, worktree: st.formWorktree })
+    if (copies > 1 && !st.formTask.trim()) { this.toast('Give the agents a task to compare them on.', true); return; }
+    this.post('launch', { repo: st.formWorktree ? st.formRepo : (st.formPath || st.formRepo), name: st.formName, base: st.formBase, task: st.formTask, model: st.formModel, mode: st.formMode, worktree: st.formWorktree, copies: copies })
       .then(function (res) {
         if (!res.ok) return;
         var branch = st.formName.trim().replace(/\s+/g, '-');
-        self.setState({ formOpen: false, repo: st.formRepo, ws: st.formWorktree ? branch : self.state.ws, selected: res.id || self.state.selected });
+        // A fan-out shows as its comparison over the whole repo, not one workstream.
+        self.setState({ formOpen: false, repo: st.formRepo, ws: res.group ? null : st.formWorktree ? branch : self.state.ws, selected: res.id || self.state.selected });
       });
   }
 
@@ -291,10 +295,18 @@ class Component extends DCLogic {
         return { label: opt + '  ' + (i + 1), style: i === 0 ? BTN_PRIMARY : BTN_SECONDARY, run: function () { self.post('answer', { id: a.id, pendingId: p.id, text: opt }); } };
       });
     }
-    return [
+    var list = [
       { label: 'Allow  A', style: BTN_PRIMARY, run: function () { self.post('answer', { id: a.id, pendingId: p.id, allow: true }); } },
       { label: 'Deny  D', style: BTN_SECONDARY, run: function () { self.post('answer', { id: a.id, pendingId: p.id, allow: false }); } }
     ];
+    // Only for a plain command the model judged safe to repeat; the server writes the rule.
+    if (p.rule) {
+      list.push({ label: 'Always allow', style: BTN_SECONDARY, run: function () {
+        if (!window.confirm('Allow this now, and from now on run exactly\n\n' + p.detail + '\n\nwithout asking in ' + a.path + '? Tower adds ' + p.rule + ' to .claude/settings.local.json there.')) return;
+        self.post('allow-always', { id: a.id, pendingId: p.id });
+      } });
+    }
+    return list;
   }
 
   // J/K walk the waiting agents, A/D allow or deny, 1-4 answer, X selects, T toggles the timeline.
@@ -463,8 +475,70 @@ class Component extends DCLogic {
     var wsPr = wsTree && wsTree.pr;
     var p = sel && sel.pending;
     var cmds = (sel && st.commands[sel.id]) || [];
+    var inScope = function (root) { return st.repo === 'all' || key(root) === key(st.repo); };
+    var scopeName = wsRepo ? wsRepo.name : null;
+    var chip = function (tone) { return 'display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: 13px; font-family: \'IBM Plex Mono\', monospace; background: ' + (tone === 'bad' ? 'var(--bad-tint)' : tone === 'warn' ? 'var(--warn-tint)' : 'var(--chip)') + '; color: ' + (tone === 'bad' ? 'var(--bad)' : tone === 'warn' ? 'var(--warn)' : 'var(--muted)'); };
+    var duration = function (s) { return s < 60 ? s + 's' : s < 3600 ? Math.floor(s / 60) + 'm ' + (s % 60) + 's' : Math.floor(s / 3600) + 'h ' + Math.round((s % 3600) / 60) + 'm'; };
+    var changes = function (x) { return '+' + (x.add || 0) + ' −' + (x.del || 0) + ' · ' + (x.files || 0) + ' files'; };
+
+    var limits = ((data.usage && data.usage.limits) || []).map(function (l) {
+      return { text: l.label + ' ' + l.percent + '%' + (l.resets ? ' · resets ' + l.resets : ''), title: l.label + ' rate limit: ' + l.percent + '% used' + (l.resets ? ', resets in ' + l.resets : ''),
+        style: chip(l.percent >= 90 ? 'bad' : l.percent >= 70 ? 'warn' : '') };
+    });
+
+    var doneItems = (data.done || []).filter(function (r) { return st.repo === 'all' || r.repo === scopeName; }).map(function (r) {
+      var when = new Date(r.at);
+      return {
+        when: isNaN(when.getTime()) ? '' : String(when.getHours()).padStart(2, '0') + ':' + String(when.getMinutes()).padStart(2, '0'),
+        day: isNaN(when.getTime()) ? '' : when.toDateString() === new Date().toDateString() ? 'today' : when.toLocaleDateString(),
+        repo: r.repo, name: r.name, branch: r.branch, summary: r.summary || 'Finished.', changes: changes(r),
+        took: duration(r.seconds || 0), cost: money(r.cost), pr: r.pr ? r.pr.title : '', hasPr: Boolean(r.pr)
+      };
+    });
+
+    var groups = (data.groups || []).filter(function (g) { return inScope(g.root); }).map(function (g) {
+      return {
+        name: g.name, task: g.task, count: String(g.members.length),
+        members: g.members.map(function (m) {
+          return {
+            branch: m.branch, stateLabel: LABELS[m.state] || m.state, pill: pill(m.state), doing: m.summary || m.doing,
+            changes: changes(m), cost: money(m.cost), pr: m.pr ? m.pr.title : 'no PR', hasHealth: Boolean(m.health), health: m.health || '',
+            style: 'display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); border-top: 3px solid ' + (COLORS[m.health ? 'stuck' : m.state] || COLORS.idle),
+            open: function () { if (m.id) self.setState({ selected: m.id }); },
+            keep: function () {
+              var n = g.members.length - 1;
+              if (!window.confirm('Keep ' + m.branch + '? The other ' + n + ' agent' + (n === 1 ? '' : 's') + ' stop and their worktrees are removed (their branches are kept). ' + m.branch + ' is asked for a pull request if it has none.')) return;
+              self.post('keep-fanout', { group: g.id, branch: m.branch });
+            }
+          };
+        })
+      };
+    });
+
+    var queues = repoList.filter(function (r) { return inScope(r.root) && (r.ready || []).length >= 2; }).map(function (r) {
+      return {
+        text: r.ready.length + ' pull requests in ' + r.name + ' are green: ' + r.ready.map(function (x) { return '#' + x.num; }).join(', '),
+        run: function () {
+          if (!window.confirm('Squash-merge ' + r.ready.map(function (x) { return x.title; }).join(', ') + ' in that order, deleting their branches? Each is checked again just before its merge; the queue stops at the first that is no longer green.')) return;
+          self.post('merge-queue', { root: r.root });
+        }
+      };
+    });
+
+    var settings = data.settings || {};
+    var optIn = !st.remoteDismissed && Boolean(settings.remoteAnswers) && settings.remoteAnswers !== 'always'
+      && live.some(function (a) { return a.pending && a.pending.kind === 'local'; });
 
     return {
+      usage: { limits: limits },
+      doneLog: { items: doneItems, empty: doneItems.length === 0 },
+      compare: { show: groups.length > 0, groups: groups },
+      queue: { show: queues.length > 0, items: queues },
+      optIn: {
+        show: optIn,
+        turnOn: function () { self.post('remote-answers', { value: 'always' }).then(function (res) { if (res.ok) self.remember({ remoteDismissed: true }); }); },
+        later: function () { self.remember({ remoteDismissed: true }); }
+      },
       panels: this.panelVals(),
       theme: {
         attr: themeAttr,
@@ -512,9 +586,11 @@ class Component extends DCLogic {
         bases: [{ value: 'current', label: 'the current branch' }],
         models: MODELS.map(function (m) { return { value: m[0], label: m[1], selected: m[0] === st.formModel }; }),
         modes: MODES.map(function (m) { return { value: m[0], label: m[1], selected: m[0] === st.formMode }; }),
-        submitLabel: st.formWorktree ? 'Create workstream' : 'Start agent',
+        submitLabel: !st.formWorktree ? 'Start agent' : st.formCopies > 1 ? 'Start ' + st.formCopies + ' agents' : 'Create workstream',
+        copies: [1, 2, 3, 4].map(function (n) { return { value: String(n), label: n === 1 ? 'One agent' : n + ' agents on the same task, to compare', selected: n === st.formCopies }; }),
+        pickCopies: function (e) { self.setState({ formCopies: Number(e.target.value) || 1 }); },
         preview: st.formWorktree
-          ? (slug ? 'claude --bg -w ' + slug + (st.formModel ? ' --model ' + st.formModel : '') + ' --permission-mode ' + st.formMode + ' -- "' + (st.formTask || '…') + '"' : 'Name the workstream to see the worktree and command it will create.')
+          ? (slug ? (st.formCopies > 1 ? st.formCopies + '× ' : '') + 'claude --bg -w ' + slug + (st.formCopies > 1 ? '-1…' + st.formCopies : '') + (st.formModel ? ' --model ' + st.formModel : '') + ' --permission-mode ' + st.formMode + ' -- "' + (st.formTask || '…') + '"' : 'Name the workstream to see the worktree and command it will create.')
           : 'claude --bg' + (st.formModel ? ' --model ' + st.formModel : '') + ' --permission-mode ' + st.formMode + ' -- "' + (st.formTask || '…') + '"',
         typedName: function (e) { self.setState({ formName: e.target.value }); },
         typedTask: function (e) { self.setState({ formTask: e.target.value }); },
@@ -552,12 +628,13 @@ class Component extends DCLogic {
       agents: agents, lanes: lanes, needs: needs, hasNeeds: needs.length > 0,
       waitedTotal: Math.round(waitedMinutes) + ' min',
       views: {
-        isFleet: st.view === 'fleet', isCards: st.view === 'cards', isTimeline: st.view === 'timeline',
-        fleetPressed: String(st.view === 'fleet'), cardsPressed: String(st.view === 'cards'), timelinePressed: String(st.view === 'timeline'),
-        fleetStyle: viewBtn(st.view === 'fleet'), cardsStyle: viewBtn(st.view === 'cards'), timelineStyle: viewBtn(st.view === 'timeline'),
+        isFleet: st.view === 'fleet', isCards: st.view === 'cards', isTimeline: st.view === 'timeline', isDone: st.view === 'done',
+        fleetPressed: String(st.view === 'fleet'), cardsPressed: String(st.view === 'cards'), timelinePressed: String(st.view === 'timeline'), donePressed: String(st.view === 'done'),
+        fleetStyle: viewBtn(st.view === 'fleet'), cardsStyle: viewBtn(st.view === 'cards'), timelineStyle: viewBtn(st.view === 'timeline'), doneStyle: viewBtn(st.view === 'done'),
         showFleet: function () { self.remember({ view: 'fleet' }); },
         showCards: function () { self.remember({ view: 'cards' }); },
-        showTimeline: function () { self.remember({ view: 'timeline' }); }
+        showTimeline: function () { self.remember({ view: 'timeline' }); },
+        showDone: function () { self.remember({ view: 'done' }); }
       },
       hasChecked: checkedIds.length > 0,
       bulk: {
@@ -587,7 +664,7 @@ class Component extends DCLogic {
         repo: sel.repo, name: sel.name, path: sel.path, branch: sel.branch, model: sel.model, mode: sel.mode,
         stateLabel: LABELS[sel.state], dot: dot(sel.health ? 'stuck' : sel.state, 10), pill: pill(sel.state),
         hasHealth: Boolean(sel.health), health: sel.health || '',
-        usage: money(sel.cost) + ' spent · context ' + sel.ctx + '%' + (sel.effort ? ' · effort ' + sel.effort : '') + (sel.hasBeacon ? '' : ' · no beacon in this session'),
+        usage: money(sel.cost) + (sel.budget ? ' of a ' + money(sel.budget) + ' budget' : ' spent') + ' · context ' + sel.ctx + '%' + (sel.effort ? ' · effort ' + sel.effort : '') + (sel.hasBeacon ? '' : ' · no beacon in this session'),
         hasPending: Boolean(p),
         kindLabel: p ? (p.kind === 'question' ? 'Asks you' : p.kind === 'edit' ? 'Wants to edit' : p.kind === 'local' ? 'Waiting in its terminal' : 'Wants to run') : '',
         detail: p ? p.detail : '',

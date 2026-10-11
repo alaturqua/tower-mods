@@ -2,7 +2,7 @@
 // files, git per working folder, and open PRs. Slow sources are cached.
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { readFile, readdir } from 'node:fs/promises'
+import { appendFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -126,7 +126,8 @@ export const worktreesOf = cached(10000, async root => {
 })
 
 // Open PRs by head branch, from gh where the repo has a GitHub remote; nothing otherwise.
-export const prsOf = cached(60000, async root => {
+// `fetchPrs` always asks; `prsOf` is the minute-old copy the screen uses.
+export async function fetchPrs(root) {
   const out = await run('gh', ['pr', 'list', '--state', 'open', '--limit', '50', '--json',
     'number,title,headRefName,url,reviewDecision,mergeable,statusCheckRollup'], { cwd: root, timeout: 20000 })
   if (!out.ok) return {}
@@ -141,7 +142,8 @@ export const prsOf = cached(60000, async root => {
     }
   }
   return byBranch
-})
+}
+export const prsOf = cached(60000, fetchPrs)
 
 export async function knownRepos() {
   return (await readJson(join(TOWER, 'repos.json'))) ?? []
@@ -149,4 +151,48 @@ export async function knownRepos() {
 
 export async function listSessionFiles() {
   try { return await readdir(join(TOWER, 'sessions')) } catch { return [] }
+}
+
+// ---- the done log: one JSON line per finished run, newest last ---------------------------
+
+const HISTORY_FILE = () => join(TOWER, 'history.jsonl')
+const HISTORY_KEEP = 500
+
+export async function historyOf(limit = 50) {
+  try {
+    const lines = (await readFile(HISTORY_FILE(), 'utf8')).split('\n').filter(Boolean)
+    // Grown past its cap: keep the newest, so the file never runs away.
+    if (lines.length > HISTORY_KEEP * 2) await writeFile(HISTORY_FILE(), lines.slice(-HISTORY_KEEP).join('\n') + '\n')
+    return lines.slice(-limit).map(line => { try { return JSON.parse(line) } catch { return null } }).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+export async function recordDone(records) {
+  if (!records.length) return
+  await mkdir(TOWER, { recursive: true })
+  await appendFile(HISTORY_FILE(), records.map(r => JSON.stringify(r)).join('\n') + '\n')
+}
+
+// ---- fan-outs: one prompt started in several worktrees, kept together to compare ----------
+
+export async function fanoutsOf() {
+  try {
+    const dir = join(TOWER, 'fanouts')
+    const names = await readdir(dir)
+    return (await Promise.all(names.filter(n => n.endsWith('.json')).map(n => readJson(join(dir, n))))).filter(Boolean)
+      .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+  } catch {
+    return []
+  }
+}
+
+// ---- Claude Code's settings, only for the one option the cockpit offers to change ---------
+
+export const SETTINGS = () => process.env.TOWER_SETTINGS || join(homedir(), '.claude', 'settings.json')
+
+export async function remoteAnswersSetting() {
+  const value = (await readJson(SETTINGS()))?.pluginConfigs?.tower?.options?.remoteAnswers
+  return value === 'always' || value === 'never' ? value : 'launched'
 }

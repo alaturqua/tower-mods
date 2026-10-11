@@ -76,16 +76,26 @@ export function modelName(model) {
   return `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}${m[3] ? '.' + m[3] : ''}${/\[1m\]/i.test(raw) ? ' 1M' : ''}`
 }
 
+// The permission rule "Always allow" would write: this exact command and no other, and only
+// for a plain Bash command with no risk badge. Anything broader is the user's to write.
+export function ruleOf(p, detail, risk) {
+  if (p.kind !== 'permission' || p.title !== 'Bash' || risk || !detail) return null
+  // describeInput cuts at 300; a cut command is not the command that ran.
+  if (detail.length >= 300 || /[*()\\\r\n]/.test(detail)) return null
+  return `Bash(${detail})`
+}
+
 // What a pending request looks like on a card. A session that keeps its own dialogs still
 // shows what it waits on, as a local wait the cockpit can only jump to.
 export function pendingOf(status, state) {
   const p = status?.pending
   if (p) {
     const detail = p.kind === 'question' ? p.title : (p.detail ?? p.title)
+    const risk = p.kind === 'question' ? null : riskOf(detail)
     return {
       id: p.id, kind: p.kind === 'question' ? 'question' : (p.diff ? 'edit' : 'permission'), remote: true,
       title: p.title, detail, why: p.why ?? null, options: p.options ?? [], diff: p.diff ?? null,
-      risk: p.kind === 'question' ? null : riskOf(detail), since: p.since ?? null,
+      risk, rule: ruleOf(p, detail, risk), since: p.since ?? null,
     }
   }
   if (state === 'needs' && status?.message) {
@@ -113,6 +123,10 @@ export function toAgent({ row, status, git, pr, lane, inbox = 0, now }) {
     // Sent from the cockpit, not yet picked up by the session.
     queued: canSteer ? Math.max(0, inbox - (status.inboxSeen ?? 0)) : 0,
     pid: row.pid ?? null,
+    limits: status?.rateLimits ?? [],
+    reported: Date.parse(status?.updatedAt ?? '') || 0,
+    budget: status?.budgetUsd ?? 0,
+    touched: (git?.files ?? []).slice(0, 300).map(f => f.path),
     doing: pending ? `${pending.kind === 'question' ? 'Asks' : 'Waiting'}: ${pending.detail}` : (status?.message ?? (state === 'working' ? 'Working' : 'Waiting for your next prompt')),
     waited: Number.isNaN(since) ? 0 : Math.max(0, Math.round((now - since) / 60000)),
     age: ago(updated, now),
@@ -181,7 +195,10 @@ export function reposOf(agents, known) {
     if (a.branch !== '—' && !repo.worktrees.has(a.branch)) repo.worktrees.set(a.branch, { branch: a.branch, path: a.path })
   }
   return [...byRoot.values()]
-    .map(r => ({ root: r.root, name: r.name, worktrees: [...r.worktrees.values()] }))
+    .map(r => {
+      const worktrees = [...r.worktrees.values()]
+      return { root: r.root, name: r.name, worktrees, ready: readyOf(worktrees) }
+    })
     .sort((x, y) => x.name.localeCompare(y.name))
 }
 
@@ -195,4 +212,104 @@ export function totalsOf(agents) {
     alerts: agents.filter(a => a.health).length,
     cost: agents.reduce((n, a) => n + (a.cost || 0), 0),
   }
+}
+
+// ---- account usage: the rate-limit windows, from whichever session reported them last ------
+
+const WINDOWS = { five_hour: '5-hour', seven_day: 'Weekly', spend_limit: 'Spend' }
+
+function until(iso, now) {
+  const t = Date.parse(iso ?? '')
+  return Number.isNaN(t) ? '' : ago(now, Math.max(now, t))
+}
+
+export function usageOf(agents, now) {
+  const latest = new Map()
+  for (const a of agents) {
+    for (const l of a.limits ?? []) if (!latest.has(l.kind) || a.reported > latest.get(l.kind).reported) latest.set(l.kind, { ...l, reported: a.reported })
+  }
+  const percent = l => Math.round(l.percentUsed)
+  return {
+    limits: [...latest.values()]
+      .sort((x, y) => Object.keys(WINDOWS).indexOf(x.kind) - Object.keys(WINDOWS).indexOf(y.kind))
+      .map(l => ({ kind: l.kind, label: WINDOWS[l.kind] ?? l.kind, percent: percent(l), resets: until(l.resetsAt, now) })),
+  }
+}
+
+// ---- the done log: a run that ended in "done" becomes one record ---------------------------
+
+// `last` (id -> state) and `began` (id -> { at, cost }) are the caller's memory between
+// refreshes and are updated here. A restart forgets them, so nothing is recorded twice.
+export function finishedOf(agents, last, began, now) {
+  const records = []
+  for (const a of agents) {
+    const before = last.get(a.id)
+    if (a.state === 'working' && !began.has(a.id)) began.set(a.id, { at: now, cost: a.cost })
+    if (a.state === 'done' && (before === 'working' || before === 'needs')) {
+      const start = began.get(a.id) ?? { at: now, cost: a.cost }
+      records.push({
+        id: a.id, at: new Date(now).toISOString(), repo: a.repo, name: a.name, branch: a.branch,
+        seconds: Math.round((now - start.at) / 1000), cost: Math.max(0, +(a.cost - start.cost).toFixed(2)),
+        add: a.add, del: a.del, files: a.files, pr: a.pr ? { num: a.pr.num, title: a.pr.title } : null,
+        summary: lastLine(a.lastAnswer),
+      })
+    }
+    if (a.state !== 'working' && a.state !== 'needs') began.delete(a.id)
+    last.set(a.id, a.state)
+  }
+  return records
+}
+
+// ---- two agents, one file: worktrees that will collide when both are merged ---------------
+
+const norm = p => String(p).toLowerCase().replace(/\\/g, '/').replace(/\/+$/, '')
+
+// The last non-empty line of an answer: what the agent said last.
+const lastLine = text => (text ?? '').split('\n').map(l => l.trim()).filter(Boolean).pop()?.slice(0, 200) ?? ''
+
+// id -> a sentence, for every agent that changes a file another agent in the same
+// repository, in a different worktree, also changes.
+export function conflictsOf(agents) {
+  const found = new Map()
+  for (const a of agents) {
+    for (const b of agents) {
+      if (a === b || norm(a.repoRoot) !== norm(b.repoRoot) || norm(a.path) === norm(b.path)) continue
+      const theirs = new Set(b.touched ?? [])
+      const shared = (a.touched ?? []).filter(f => theirs.has(f))
+      if (shared.length && !found.has(a.id)) {
+        found.set(a.id, `${shared[0]}${shared.length > 1 ? ` and ${shared.length - 1} more` : ''} also changed by ${b.name} (⎇ ${b.branch})`)
+      }
+    }
+  }
+  return found
+}
+
+// A conflict is a health problem like any other, unless the agent has a worse one.
+export function markConflicts(agents) {
+  for (const [id, text] of conflictsOf(agents)) {
+    const a = agents.find(x => x.id === id)
+    a.conflict = text
+    a.health = a.health || `Conflict: ${text}`
+  }
+  return agents
+}
+
+// ---- the merge queue: green pull requests, oldest first -----------------------------------
+
+export function readyOf(worktrees) {
+  return worktrees.filter(w => w.pr?.mergeable).map(w => ({ num: w.pr.num, title: w.pr.title, branch: w.branch })).sort((x, y) => x.num - y.num)
+}
+
+// ---- fan-outs: the agents of one group, side by side --------------------------------------
+
+export function groupsOf(records, agents) {
+  return records.map(g => ({
+    id: g.id, name: g.name, task: g.task, root: g.repo,
+    members: g.branches.map(branch => {
+      const a = agents.find(x => x.name === branch && norm(x.repoRoot) === norm(g.repo))
+      return a
+        ? { branch, id: a.id, state: a.state, doing: a.doing, add: a.add, del: a.del, files: a.files, cost: a.cost, pr: a.pr ? { num: a.pr.num, title: a.pr.title } : null, health: a.health, summary: lastLine(a.lastAnswer) }
+        : { branch, id: null, state: 'idle', doing: 'Starting…', add: 0, del: 0, files: 0, cost: 0, pr: null, health: null, summary: '' }
+    }),
+  }))
 }

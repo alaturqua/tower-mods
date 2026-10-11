@@ -57,7 +57,31 @@
     agent({ id: 'a7', repo: 'tower-mods', name: 'main', branch: 'main', state: 'idle', ctx: 54, cost: 2.3,
       doing: 'Waiting for your next prompt', add: 0, del: 0, files: 0,
       feed: [[clock(55), 'you', 'Add a status line mod'], [clock(40), 'say', 'Added the status line; 7 tests pass.']],
-      lane: [[0, 20, 'working']] })
+      lane: [[0, 20, 'working']] }),
+    agent({ id: 'a8', repo: 'web', name: 'lint-pass', branch: 'chore/lint', state: 'needs', waited: 2, ctx: 21, cost: 0.18, model: 'Sonnet 5.5',
+      pending: { id: 'p-8', kind: 'permission', remote: true, title: 'Bash', detail: 'npm run lint', why: 'Fixed the import order; checking the rest.', options: [], diff: null, risk: null, rule: 'Bash(npm run lint)', since: ago(2) },
+      doing: 'Waiting: npm run lint', add: 22, del: 19, files: 6,
+      feed: [[clock(9), 'you', 'Make the lint pass'], [clock(4), 'tool', 'Edit 6 files'], [clock(2), 'wait', 'Bash: npm run lint']],
+      lane: [[45, 58, 'working'], [58, 60, 'needs']] }),
+    agent({ id: 'a9', repo: 'infra', name: 'docs-refresh', branch: 'docs/runbooks', state: 'done', ctx: 15, cost: 0.22, model: 'Haiku 4.5',
+      doing: 'Opened #90 with the refreshed runbooks.', add: 120, del: 40, files: 4,
+      pr: { num: 90, title: '#90 Refresh the runbooks', url: '#', checks: [['markdownlint', 'pass']], reviews: 'Approved', mergeable: true },
+      lane: [[30, 50, 'working'], [50, 60, 'done']] }),
+    agent({ id: 'f1', repo: 'api', name: 'rate-limit-1', kind: 'bg', branch: 'rate-limit-1', state: 'working', ctx: 33, cost: 0.61,
+      doing: 'Edit src/middleware/limit.ts', lastAnswer: 'Token bucket per API key, in memory.', add: 88, del: 4, files: 3,
+      health: 'Conflict: src/auth/session.ts also changed by auth-refactor (⎇ refactor/auth)', lane: [[40, 60, 'working']] }),
+    agent({ id: 'f2', repo: 'api', name: 'rate-limit-2', kind: 'bg', branch: 'rate-limit-2', state: 'done', ctx: 29, cost: 0.47,
+      doing: 'Sliding window in Redis; tests pass.', lastAnswer: 'Sliding window in Redis; 14 tests pass.', add: 120, del: 9, files: 5, lane: [[40, 56, 'working'], [56, 60, 'done']] }),
+    agent({ id: 'h1', repo: 'tower-mods', name: 'site-copy', branch: 'main', state: 'needs', waited: 4, ctx: 12, cost: 0.09,
+      pending: { id: null, kind: 'local', remote: false, title: 'In its terminal', detail: 'Claude needs your permission to use Bash', why: null, options: [], diff: null, risk: null, since: ago(4) },
+      doing: 'Waiting: Claude needs your permission to use Bash', lane: [[50, 56, 'working'], [56, 60, 'needs']] })
+  ]
+  var settings = { remoteAnswers: 'launched' }
+  var groups = [{ id: 'g1', name: 'rate-limit', task: 'Add rate limiting to the public API. Pick the simplest design that survives a restart.', root: ROOT + 'api', branches: ['rate-limit-1', 'rate-limit-2'] }]
+  var done = [
+    { at: ago(15), repo: 'infra', name: 'lint-fix', branch: 'fix/tflint', summary: 'Opened #88; all checks pass.', add: 9, del: 9, files: 3, seconds: 212, cost: 0.12, pr: { num: 88, title: '#88 Fix tflint warnings' } },
+    { at: ago(48), repo: 'web', name: 'og-images', branch: 'feat/og', summary: 'Generated Open Graph images for all 24 pages.', add: 310, del: 12, files: 26, seconds: 1340, cost: 0.94, pr: null },
+    { at: ago(95), repo: 'api', name: 'n-plus-one', branch: 'fix/orders-query', summary: 'Orders list is one query now; p95 went from 840 ms to 90 ms.', add: 41, del: 63, files: 4, seconds: 760, cost: 0.58, pr: { num: 233, title: '#233 Load order lines in one query' } }
   ]
 
   // /demo/?long swaps in the long names real repositories have, to check how the page copes.
@@ -75,13 +99,26 @@
       var r = byRepo[a.repo] || (byRepo[a.repo] = { root: a.repoRoot, name: a.repo, worktrees: [] })
       if (!r.worktrees.some(function (w) { return w.branch === a.branch })) r.worktrees.push({ branch: a.branch, path: a.path, pr: a.pr })
     })
-    return Object.keys(byRepo).sort().map(function (k) { return byRepo[k] })
+    return Object.keys(byRepo).sort().map(function (k) {
+      var r = byRepo[k]
+      r.ready = r.worktrees.filter(function (w) { return w.pr && w.pr.mergeable }).map(function (w) { return { num: w.pr.num, title: w.pr.title, branch: w.branch } }).sort(function (x, y) { return x.num - y.num })
+      return r
+    })
   }
 
   function snapshot() {
     var count = function (s) { return agents.filter(function (a) { return a.state === s }).length }
     return {
-      agents: agents, repos: repos(), error: null, at: Date.now(),
+      agents: agents, repos: repos(), error: null, at: Date.now(), settings: settings, done: done,
+      usage: { limits: [{ kind: 'five_hour', label: '5-hour', percent: 72, resets: '1h' }, { kind: 'seven_day', label: 'Weekly', percent: 41, resets: '4d' }] },
+      groups: groups.map(function (g) {
+        return { id: g.id, name: g.name, task: g.task, root: g.root, members: g.branches.map(function (b) {
+          var a = agents.filter(function (x) { return x.name === b })[0]
+          return a
+            ? { branch: b, id: a.id, state: a.state, doing: a.doing, add: a.add, del: a.del, files: a.files, cost: a.cost, pr: a.pr, health: a.health, summary: a.lastAnswer || '' }
+            : { branch: b, id: null, state: 'idle', doing: 'Starting…', add: 0, del: 0, files: 0, cost: 0, pr: null, health: null, summary: '' }
+        }) }
+      }),
       totals: { total: agents.length, needs: count('needs'), working: count('working'), done: count('done'),
         alerts: agents.filter(function (a) { return a.health }).length, cost: agents.reduce(function (n, a) { return n + a.cost }, 0) }
     }
@@ -126,6 +163,17 @@
     },
     launch: function (b) {
       var name = String(b.name || 'agent').trim().replace(/\s+/g, '-')
+      var copies = b.worktree ? Math.max(1, Math.min(4, Number(b.copies) || 1)) : 1
+      if (copies > 1) {
+        var branches = [], ids = []
+        for (var i = 1; i <= copies; i++) {
+          branches.push(name + '-' + i)
+          ids.push(ACTIONS.launch(Object.assign({}, b, { name: name + '-' + i, copies: 1 })).id)
+        }
+        var gid = 'g' + Date.now()
+        groups.push({ id: gid, name: name, task: b.task, root: b.repo, branches: branches })
+        return { ok: true, message: 'Started ' + copies + ' agents on the same task. Compare them above the fleet.', id: ids[0], ids: ids, group: gid }
+      }
       var repo = String(b.repo).split(/[\\/]/).pop()
       var a = agent({ id: 'n' + Date.now(), repo: repo, name: name, kind: 'bg', branch: b.worktree ? name : 'main', model: b.model ? b.model[0].toUpperCase() + b.model.slice(1) : 'Opus 5.5',
         mode: b.mode === 'acceptEdits' ? 'accept edits' : b.mode, ctx: 2, cost: 0, add: 0, del: 0, files: 0, doing: 'Starting…',
@@ -140,6 +188,30 @@
       return { ok: true, message: 'Stopped.' }
     },
     jump: function () { return { ok: true, message: 'In the cockpit on your machine, this brings the session\'s window forward.' } },
+    'allow-always': function (b) {
+      var a = find(b.id)
+      var rule = a && a.pending && a.pending.rule
+      if (!rule) return { ok: false, message: 'That request is no longer waiting.' }
+      ACTIONS.answer({ id: b.id, allow: true })
+      return { ok: true, message: 'Allowed. ' + rule + ' now runs without asking in ' + a.repo + '. (In the demo nothing is written.)' }
+    },
+    'remote-answers': function (b) {
+      settings.remoteAnswers = b.value
+      return { ok: true, message: 'Done. Sessions you start from now on send their permission prompts and questions here.' }
+    },
+    'merge-queue': function (b) {
+      var nums = []
+      agents.forEach(function (a) { if (a.repoRoot === b.root && a.pr && a.pr.mergeable) { nums.push(a.pr.num); note(a, 'say', 'Merged ' + a.pr.title + '.'); a.pr = null } })
+      nums.sort(function (x, y) { return x - y })
+      return { ok: true, message: 'Merged ' + nums.map(function (n) { return '#' + n }).join(', ') + ' in order (in the demo).' }
+    },
+    'keep-fanout': function (b) {
+      var g = groups.filter(function (x) { return x.id === b.group })[0]
+      if (!g) return { ok: false, message: 'That comparison is gone.' }
+      agents = agents.filter(function (a) { return g.branches.indexOf(a.name) < 0 || a.name === b.branch })
+      groups = groups.filter(function (x) { return x !== g })
+      return { ok: true, message: 'Kept ' + b.branch + '. Removed ' + (g.branches.length - 1) + ' other worktree(s); their branches are kept.' }
+    },
     merge: function (b) {
       var a = agents.filter(function (x) { return x.pr && x.pr.num === b.number })[0]
       if (a) { a.pr = null; note(a, 'say', 'Merged #' + b.number + '.') }

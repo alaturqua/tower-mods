@@ -30,7 +30,9 @@ function stubHost(on: On, os = 'Windows_NT', launched = false) {
   on('clock.now', () => ({ value: Date.now() }))
   on('fs.write', (_$, e) => { writes.push({ path: e.path, text: e.text }); return { value: undefined } })
   on('ui.log', () => ({ value: undefined }))
-  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000, percent: 37 }, rateLimits: [], cost: { usd: 0.42 } } }) as never)
+  // A test may change the figures before it acts.
+  const usage = { startedAt: 0, context: { window: 200000, percent: 37 }, rateLimits: [] as { kind: string; percentUsed: number; resetsAt?: string }[], cost: { usd: 0.42 } }
+  on('session.usage', () => ({ value: usage }) as never)
   on('session.messages', () => ({ value: [{ role: 'assistant', text: 'All 12 models build.\nReady to push.', toolUses: [] }] }) as never)
   const store: Record<string, unknown> = {}
   on('store.get', (_$, e) => ({ value: store[e.key] }) as never)
@@ -54,7 +56,7 @@ function stubHost(on: On, os = 'Windows_NT', launched = false) {
     return JSON.parse(mine[mine.length - 1]?.text ?? '{}')
   }
   const tick = (n: number) => { ticks = n }
-  return { runs, writes, prompts, firstRun, lastStatus, files, store, tick }
+  return { runs, writes, prompts, firstRun, lastStatus, files, store, tick, usage }
 }
 
 const INBOX = '.claude/tower/inbox/sess-1.jsonl'
@@ -299,4 +301,46 @@ test('a long turn finishing raises a Done toast', async ($, on) => {
 
   expect(host.runs[0]?.env.BEACON_TITLE).toBe('Done · dbt-platform')
   expect(host.runs[0]?.env.BEACON_BODY).toBe('95s · Migrated 12 models.')
+})
+
+test('past its budget a session is flagged and notifies once', { options: { budgetUsd: 0.4 } }, async ($, on) => {
+  const host = stubHost(on)
+  on('tool.call', () => ({ result: 'ok' }) as never)
+
+  await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
+  await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
+  await new Promise(resolve => setTimeout(() => resolve(undefined), 30))
+
+  expect(host.lastStatus()).toMatchObject({ budgetUsd: 0.4, health: 'Over budget: $0.42 of $0.40' })
+  const toasts = host.runs.filter(r => r.env.BEACON_TITLE?.startsWith('Budget'))
+  expect(toasts.length).toBe(1)
+  expect(toasts[0]?.env.BEACON_BODY).toBe('$0.42 spent, past its $0.40 budget')
+})
+
+test('a rate-limit window past the alert level notifies once and is written for the cockpit', async ($, on) => {
+  const host = stubHost(on)
+  on('tool.call', () => ({ result: 'ok' }) as never)
+  host.usage.rateLimits = [{ kind: 'five_hour', percentUsed: 93.5, resetsAt: '2026-10-06T16:00:00Z' }, { kind: 'seven_day', percentUsed: 40 }]
+
+  await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
+  await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
+  await new Promise(resolve => setTimeout(() => resolve(undefined), 30))
+
+  expect(host.lastStatus().rateLimits).toEqual(host.usage.rateLimits)
+  const toasts = host.runs.filter(r => r.env.BEACON_TITLE === 'Usage · 5-hour limit')
+  expect(toasts.length).toBe(1)
+  expect(toasts[0]?.env.BEACON_BODY).toContain('94% of the 5-hour limit used')
+  expect(host.writes.some(w => tail(w.path) === '.claude/tower/alerts/five_hour.json')).toBe(true)
+})
+
+test('another session already announced this window: no second notification', async ($, on) => {
+  const host = stubHost(on)
+  on('tool.call', () => ({ result: 'ok' }) as never)
+  host.usage.rateLimits = [{ kind: 'five_hour', percentUsed: 95, resetsAt: '2026-10-06T16:00:00Z' }]
+  host.files['.claude/tower/alerts/five_hour.json'] = JSON.stringify({ key: 'five_hour@2026-10-06T16:00:00Z' })
+
+  await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
+  await new Promise(resolve => setTimeout(() => resolve(undefined), 30))
+
+  expect(host.runs.length).toBe(0)
 })

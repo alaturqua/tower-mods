@@ -189,3 +189,101 @@ test('arrow keys resize a focused grip, Shift takes a bigger step', { skip }, as
   assert.equal((await widths(tab)).rail, start + 16 + 64)
   await tab.close()
 })
+
+// ---- usage, Always allow, the done log, the merge queue, fan-outs, the opt-in -------------
+
+const clickText = (tab, text) => tab.evaluate(t => {
+  const b = [...document.querySelectorAll('button')].find(x => x.textContent.trim().startsWith(t))
+  if (!b) return false
+  b.scrollIntoView({ block: 'center' })
+  b.click()
+  return true
+}, text)
+const toast = tab => tab.evaluate(() => document.querySelector('[role=status]')?.textContent ?? '')
+
+test('the header shows the account\'s rate-limit windows', { skip }, async () => {
+  const tab = await open(1440, 900)
+  const text = await tab.evaluate(() => document.querySelector('header').innerText)
+  assert.match(text, /5-hour 72% · resets 1h/)
+  assert.match(text, /Weekly 41%/)
+  await tab.close()
+})
+
+test('Always allow asks first, then allows and says which rule now holds', { skip }, async () => {
+  const tab = await open(1440, 900)
+  const asked = []
+  tab.on('dialog', d => { asked.push(d.message()); d.accept() })
+  assert.ok(await clickText(tab, 'Always allow'))
+  await pause(300)
+  assert.match(asked[0], /npm run lint/)
+  assert.match(await toast(tab), /Bash\(npm run lint\) now runs without asking/)
+  assert.equal(await tab.evaluate(() => [...document.querySelectorAll('button')].some(b => b.textContent.trim() === 'Always allow')), false)
+  await tab.close()
+})
+
+test('the Done view lists finished runs with what they changed and cost', { skip }, async () => {
+  const tab = await open(1440, 900)
+  assert.ok(await clickText(tab, 'Done'))
+  await pause(200)
+  const text = await tab.evaluate(() => document.querySelector('section[aria-label=Agents]').innerText)
+  assert.match(text, /Orders list is one query now/)
+  assert.match(text, /\+41 −63 · 4 files/)
+  assert.match(text, /12m 40s · \$0\.58/)
+  await tab.evaluate(() => localStorage.clear())
+  await tab.close()
+})
+
+test('two green PRs in a repo offer one merge in order', { skip }, async () => {
+  const tab = await open(1440, 900)
+  tab.on('dialog', d => d.accept())
+  assert.match(await tab.evaluate(() => document.querySelector('section[aria-label="Merge queue"]').innerText), /#88, #90/)
+  assert.ok(await clickText(tab, 'Merge all in order'))
+  await pause(300)
+  assert.match(await toast(tab), /Merged #88, #90 in order/)
+  assert.equal(await tab.$('section[aria-label="Merge queue"]'), null)
+  await tab.close()
+})
+
+test('a fan-out is compared side by side, and keeping one removes the others', { skip }, async () => {
+  const tab = await open(1440, 900)
+  tab.on('dialog', d => d.accept())
+  const card = await tab.evaluate(() => document.querySelector('section[aria-label="Compare rate-limit"]').innerText)
+  assert.match(card, /rate-limit-1[\s\S]*Conflict: src\/auth\/session\.ts/)
+  assert.match(card, /Sliding window in Redis; 14 tests pass\./)
+  await tab.evaluate(() => [...document.querySelectorAll('section[aria-label="Compare rate-limit"] button')].filter(b => b.textContent.trim() === 'Keep this one')[1].click())
+  await pause(300)
+  assert.match(await toast(tab), /Kept rate-limit-2/)
+  assert.equal(await tab.$('section[aria-label="Compare rate-limit"]'), null)
+  assert.equal(await tab.evaluate(() => document.body.innerText.includes('rate-limit-1')), false)
+  await tab.close()
+})
+
+test('the launch form starts several agents on one task as a comparison', { skip }, async () => {
+  const tab = await open(1440, 900)
+  assert.ok(await clickText(tab, '+ New agent'))
+  await tab.waitForSelector('#ws-name')
+  await tab.type('#ws-name', 'speed-up')
+  await tab.type('#ws-task', 'Make the build faster')
+  await tab.select('#ws-copies', '3')
+  await pause(100)
+  assert.ok(await clickText(tab, 'Start 3 agents'))
+  await pause(300)
+  const card = await tab.evaluate(() => document.querySelector('section[aria-label="Compare speed-up"]')?.innerText ?? '')
+  assert.match(card, /3 agents/i)
+  assert.match(card, /speed-up-1[\s\S]*speed-up-2[\s\S]*speed-up-3/)
+  await tab.close()
+})
+
+test('a session waiting in its terminal brings the offer to answer from here, once', { skip }, async () => {
+  const tab = await open(1440, 900)
+  assert.ok(await tab.$('section[aria-label="Answer from here"]'))
+  assert.ok(await clickText(tab, 'Turn on'))
+  await pause(300)
+  assert.match(await toast(tab), /Sessions you start from now on/)
+  assert.equal(await tab.$('section[aria-label="Answer from here"]'), null)
+  await tab.reload({ waitUntil: 'networkidle0' })
+  await tab.waitForSelector('#say')
+  assert.equal(await tab.$('section[aria-label="Answer from here"]'), null, 'dismissed for good in this browser')
+  await tab.evaluate(() => localStorage.clear())
+  await tab.close()
+})
