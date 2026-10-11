@@ -2,6 +2,18 @@
 
 Everything notable in Tower (the plugin and its site), newest first. Generated from the commit history by [git-cliff](https://git-cliff.org).
 
+## [0.5.0](https://github.com/alaturqua/tower-mods/releases/tag/v0.5.0) - 2026-10-11
+
+### Added
+
+- Add usage, budgets, a done log, always-allow, a merge queue, conflict warnings and fan-outs to the cockpit ([7937e3b](https://github.com/alaturqua/tower-mods/commit/7937e3b278bff8e3bca8eaf7d99ccf51c1fbc3e9))
+
+### Changed
+
+- Bring back real buttons in the tower pane's footer ([d044f31](https://github.com/alaturqua/tower-mods/commit/d044f316b17205a555094a57090588df851f829a))
+- Make the site's header a breadcrumb dropdown on phones ([abcc1ca](https://github.com/alaturqua/tower-mods/commit/abcc1caf28b92bdeaa5235ee8de32ee79a3057e1))
+- Say Tower is a Claude Code plugin in the intro instead of a label above the heading ([a1de0fa](https://github.com/alaturqua/tower-mods/commit/a1de0fa697524362c0e1e580d5465500d556c402))
+- Show the budget, the 5-hour limit and health flags in the terminal ([bf73667](https://github.com/alaturqua/tower-mods/commit/bf73667fa17ecbd37725a6420fd4f48ea567b341))
 ## [0.4.3](https://github.com/alaturqua/tower-mods/releases/tag/v0.4.3) - 2026-10-07
 
 ### Changed
